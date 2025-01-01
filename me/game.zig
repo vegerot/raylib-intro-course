@@ -83,6 +83,10 @@ const Ball = struct {
             self.position.y = self.radius;
         }
     }
+    pub fn step(self: *Ball, fps: f32) void {
+        self.position.x += self.velocity.x / fps;
+        self.position.y += self.velocity.y / fps;
+    }
     pub fn invertVelocity(self: *Ball) void {
         self.velocity.x *= -1;
         self.velocity.y *= -1;
@@ -91,6 +95,8 @@ const Ball = struct {
         const speedMultiplier = 1.1;
         self.velocity.x *= speedMultiplier;
         self.velocity.y *= speedMultiplier;
+        std.debug.print("{} going faster...{}\n", .{ colCount, self.velocity });
+        colCount += 1;
     }
 
     pub fn calculateNewVelocityAfterPaddleHit(self: *Ball, paddle: *Player) f32 {
@@ -121,6 +127,7 @@ const Game = struct {
 const MyV = struct {
     x: i8,
 };
+var colCount: c_int = 0;
 
 pub fn main() void {
     // INIT
@@ -128,9 +135,8 @@ pub fn main() void {
 
     raylib.InitWindow(screenSize.x, screenSize.y, "PROJECT: BLOCKS GAME");
     defer raylib.CloseWindow();
-    const fps = 60;
-    const fps_float: comptime_float = @floatFromInt(fps);
-    raylib.SetTargetFPS(fps);
+    const initial_fps = 24;
+    var fps_float: f32 = @floatFromInt(initial_fps);
 
     const ballRadius = 10;
     const initialPlayerPosition = raylib.Vector2{
@@ -167,7 +173,7 @@ pub fn main() void {
                 .y = initialPlayerPosition.y - ballRadius * 2,
             },
             .velocity = raylib.Vector2{
-                .x = 69.0,
+                .x = 69,
                 .y = -42.0,
             },
             .isActive = true,
@@ -204,11 +210,21 @@ pub fn main() void {
     }
 
     while (!raylib.WindowShouldClose()) {
+        // calculate fps
+        {
+            var end: cTime.timespec = undefined;
+            _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
+
+            const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
+            const fps_calc = 1.0 / frame_time_s;
+            fps_float = fps_calc;
+            start = end;
+        }
         // UPDATE
         {
             switch (game.screen) {
                 .LOGO => {
-                    if (game.framesCounter > 3 * fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
+                    if (game.framesCounter > 3 * initial_fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
                         game.screen = .TITLE;
                         game.framesCounter = 0;
                     }
@@ -256,10 +272,11 @@ pub fn main() void {
                     game.player.updateBounds();
 
                     // physics
-                    game.ball.position = raylib.Vector2{
-                        .x = game.ball.position.x + game.ball.velocity.x / fps_float,
-                        .y = game.ball.position.y + game.ball.velocity.y / fps_float,
-                    };
+                    // game.ball.position = raylib.Vector2{
+                    //     .x = game.ball.position.x + game.ball.velocity.x / fps_float,
+                    //     .y = game.ball.position.y + game.ball.velocity.y / fps_float,
+                    // };
+                    game.ball.step(fps_float);
                     const detectBallCollisionWithWall = game.ball.detectWallCollision(screenSize);
                     const didLose = detectBallCollisionWithWall.y == .bottom;
                     if (didLose) {
@@ -277,6 +294,7 @@ pub fn main() void {
                         game.ball.velocity.x = newXVelocity;
                         game.ball.velocity.y *= -1;
                         game.ball.goFaster();
+                        game.ball.step(fps_float);
                     }
                     for (&game.bricks) |*brickRow| {
                         for (brickRow) |*brick| {
@@ -315,7 +333,7 @@ pub fn main() void {
                     raylib.DrawRectangle(0, 0, screenSize.x, screenSize.y, raylib.GREEN);
                     raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
                     const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
-                    if ((game.framesCounter / (fps / 2) % 2) == 0) {
+                    if ((game.framesCounter / (initial_fps / 2) % 2) == 0) {
                         raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKGREEN);
                     }
                 },
@@ -369,19 +387,12 @@ pub fn main() void {
                     );
                     raylib.DrawText("ENDING SCREEN", 20, 20, 40, raylib.DARKBLUE);
                     const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
-                    if ((game.framesCounter / (fps / 2) % 2) == 0) {
+                    if ((game.framesCounter / (initial_fps / 2) % 2) == 0) {
                         raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKBLUE);
                     }
                 },
             }
-
-            var end: cTime.timespec = undefined;
-            _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
-
-            const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
-            const fps_calc = 1.0 / frame_time_s;
-            start = end;
-            raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_calc), 0, 20, 20, raylib.BLACK);
+            raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_float), 0, 20, 20, raylib.BLACK);
         }
     }
 }

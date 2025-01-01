@@ -27,4 +27,25 @@ pub fn build(b: *std.Build) void {
     const game_exe = b.addRunArtifact(exe);
     const play_step = b.step("play", "");
     play_step.dependOn(&game_exe.step);
+    const exe2 = b.addExecutable(.{
+        .name = "fonts",
+        .root_source_file = b.path("me/showFont.zig"),
+        .target = target,
+    });
+    check_step.dependOn(&exe2.step);
+    exe2.linkLibC();
+    exe2.linkSystemLibrary("m");
+
+    exe2.addIncludePath(b.path("../raylib/src"));
+    exe2.addLibraryPath(b.path("../raylib/src"));
+    exe2.linkSystemLibrary("raylib");
+
+    if (target.result.isDarwin()) {
+        exe2.linkFramework("IOKit");
+        exe2.linkFramework("Cocoa");
+    }
+
+    const font_exe = b.addRunArtifact(exe2);
+    const font_step = b.step("font", "");
+    font_step.dependOn(&font_exe.step);
 }
