@@ -98,7 +98,7 @@ int main(void) {
                        .x = player.position.x + player.size.x / 2,
                        .y = player.position.y - ballRadius * 2,
                    },
-               .velocity = {4.0f, 4.0f},
+               .velocity = {69.0f, -42.0f},
                .active = false
 
   };
@@ -143,7 +143,6 @@ int main(void) {
       // Update LOGO screen data here!
       framesCounter++;
 
-
     } break;
     case TITLE: {
       if (IsKeyPressed(KEY_ENTER))
@@ -158,12 +157,21 @@ int main(void) {
     case GAMEPLAY: {
       if (IsKeyPressed(KEY_ENTER))
         screen = ENDING;
-      // Draw GAMEPLAY screen data here!
-
       if (!gamePaused) {
         // TODO: Gameplay logic
         ++framesCounter;
       }
+      // Draw GAMEPLAY screen data here!
+
+      Vector2 maybeNextPos = {ball.position.x + ball.velocity.x / fps,
+                              ball.position.y + ball.velocity.y / fps};
+      // NOTE: We're multiplying by 1.1 so it gets a little faster every time
+      if (maybeNextPos.x > screenWidth || maybeNextPos.x < 0)
+        ball.velocity.x *= -1.1;
+      if (maybeNextPos.y > screenHeight || maybeNextPos.y < 0)
+        ball.velocity.y *= -1.1;
+      ball.position.x += ball.velocity.x / fps;
+      ball.position.y += ball.velocity.y / fps;
 
     } break;
     case ENDING: {
@@ -218,9 +226,6 @@ int main(void) {
                  fontSize, MAROON);
 
         // LESSON 02: Draw basic shapes (circle, rectangle)
-        DrawRectangle(player.position.x, player.position.y, player.size.x,
-                      player.size.y, BLACK);
-        DrawCircleV(ball.position, ball.radius, MAROON);
 
         // draw bricks
         for (int r = 0; r < BRICKS_LINES; ++r) {
@@ -231,6 +236,10 @@ int main(void) {
             }
           }
         }
+
+        DrawRectangle(player.position.x, player.position.y, player.size.x,
+                      player.size.y, BLACK);
+        DrawCircleV(ball.position, ball.radius, MAROON);
 
         // Draw GUI; player lives
         for (int l = 0; l < player.lives; ++l)
