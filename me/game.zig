@@ -61,8 +61,24 @@ const Ball = struct {
         self.velocity.y *= -1;
     }
     pub fn goFaster(self: *Ball) void {
-        self.velocity.x *= 1.1;
-        self.velocity.y *= 1.1;
+        const speedMultiplier = 1.1;
+        self.velocity.x *= speedMultiplier;
+        self.velocity.y *= speedMultiplier;
+    }
+
+    /// keep the magnitude of the velocity the same, but set the x-direction
+    /// proportional to where on the paddle it hit
+    pub fn calculateNewVelocityAfterPaddleHit(self: *Ball, paddle: *Player) void {
+        const distanceAlongPaddle = ((self.position.x - paddle.position.x) / paddle.size.x - 0.5);
+        std.debug.print("distanceAlongPaddle = {}\n", .{distanceAlongPaddle});
+
+        const speed = @sqrt(std.math.pow(f32, self.velocity.x, 2) + std.math.pow(f32, self.velocity.y, 2));
+        const newXSpeed = speed * @sin(raylib.PI * distanceAlongPaddle);
+        const newYSpeed = -1 * speed * @cos(raylib.PI * distanceAlongPaddle);
+        self.velocity = raylib.Vector2{
+            .x = newXSpeed,
+            .y = newYSpeed,
+        };
     }
 };
 
@@ -93,7 +109,7 @@ pub fn main() void {
 
     raylib.InitWindow(screenSize.x, screenSize.y, "PROJECT: BLOCKS GAME");
     defer raylib.CloseWindow();
-    const fps = 240;
+    const fps = 60;
     const fps_float: comptime_float = @floatFromInt(fps);
     raylib.SetTargetFPS(fps);
 
@@ -170,173 +186,178 @@ pub fn main() void {
 
     while (!raylib.WindowShouldClose()) {
         // UPDATE
-        switch (game.screen) {
-            .LOGO => {
-                if (game.framesCounter > 3 * fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
-                    game.screen = .TITLE;
-                    game.framesCounter = 0;
-                }
-                game.framesCounter += 1;
-            },
-            .TITLE => {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .GAMEPLAY;
-                game.framesCounter += 1;
+        {
+            switch (game.screen) {
+                .LOGO => {
+                    if (game.framesCounter > 3 * fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
+                        game.screen = .TITLE;
+                        game.framesCounter = 0;
+                    }
+                    game.framesCounter += 1;
+                },
+                .TITLE => {
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .GAMEPLAY;
+                    game.framesCounter += 1;
 
-                game.player.lives = PLAYER_LIVES;
-            },
-            .GAMEPLAY => gameplay: {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .ENDING;
-                // fast-forward: for debugging
-                if (raylib.IsKeyPressed(raylib.KEY_PERIOD)) {
-                    game.ball.velocity.x *= 2;
-                    game.ball.velocity.y *= 2;
-                }
-                if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
-                if (!game.ball.isActive) {
-                    // reset ball after losing
-                    game.ball.position = raylib.Vector2{
-                        .x = game.player.position.x + game.player.size.x / 2,
-                        .y = game.player.position.y - game.player.size.y / 2 - game.ball.radius / 2,
-                    };
-                    game.ball.velocity = raylib.Vector2{
-                        .x = 42.0 / fps_float,
-                        .y = -69.0 / fps_float,
-                    };
-                    game.ball.isActive = true;
-                    game.isPaused = true;
-                }
-                if (game.isPaused) {
-                    break :gameplay;
-                }
-
-                game.framesCounter += 1;
-
-                // input
-                if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x;
-                if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x;
-                if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y;
-                if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y;
-                _ = clampPosition(&game.player.position, game.player.size, screenSize);
-                game.player.updateBounds();
-
-                // physics
-                game.ball.position = raylib.Vector2{
-                    .x = game.ball.position.x + game.ball.velocity.x,
-                    .y = game.ball.position.y + game.ball.velocity.y,
-                };
-                const didLose = game.ball.checkWallCollisionAndBounceOrLose(screenSize);
-                if (didLose) {
-                    game.ball.isActive = false;
-                    game.player.lives -= 1;
-                    if (game.player.lives <= 0) {
-                        game.screen = .ENDING;
+                    game.player.lives = PLAYER_LIVES;
+                },
+                .GAMEPLAY => gameplay: {
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .ENDING;
+                    // fast-forward: for debugging
+                    if (raylib.IsKeyPressed(raylib.KEY_PERIOD)) {
+                        game.ball.velocity.x *= 2;
+                        game.ball.velocity.y *= 2;
+                    }
+                    if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
+                    if (!game.ball.isActive) {
+                        // reset ball after losing
+                        game.ball.position = raylib.Vector2{
+                            .x = game.player.position.x + game.player.size.x / 2,
+                            .y = game.player.position.y - game.player.size.y / 2 - game.ball.radius / 2,
+                        };
+                        game.ball.velocity = raylib.Vector2{
+                            .x = 42.0 / fps_float,
+                            .y = -69.0 / fps_float,
+                        };
+                        game.ball.isActive = true;
+                        game.isPaused = true;
+                    }
+                    if (game.isPaused) {
                         break :gameplay;
                     }
-                }
-                if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, game.player.bounds)) {
-                    game.ball.invertVelocity();
-                }
-                for (&game.bricks) |*brickRow| {
-                    for (brickRow) |*brick| {
-                        if (!brick.isActive) continue;
-                        if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, brick.bounds)) {
-                            brick.isActive = false;
-                            game.ball.invertVelocity();
-                            game.ball.goFaster();
+
+                    game.framesCounter += 1;
+
+                    // input
+                    if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x;
+                    if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x;
+                    if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y;
+                    if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y;
+                    _ = clampPosition(&game.player.position, game.player.size, screenSize);
+                    game.player.updateBounds();
+
+                    // physics
+                    game.ball.position = raylib.Vector2{
+                        .x = game.ball.position.x + game.ball.velocity.x,
+                        .y = game.ball.position.y + game.ball.velocity.y,
+                    };
+                    const didLose = game.ball.checkWallCollisionAndBounceOrLose(screenSize);
+                    if (didLose) {
+                        game.ball.isActive = false;
+                        game.player.lives -= 1;
+                        if (game.player.lives <= 0) {
+                            game.screen = .ENDING;
+                            break :gameplay;
                         }
                     }
-                }
-            },
-            .ENDING => {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .TITLE;
-                game.framesCounter += 1;
-            },
+                    if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, game.player.bounds)) {
+                        game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
+                    }
+                    for (&game.bricks) |*brickRow| {
+                        for (brickRow) |*brick| {
+                            if (!brick.isActive) continue;
+                            if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, brick.bounds)) {
+                                brick.isActive = false;
+                                game.ball.invertVelocity();
+                                game.ball.goFaster();
+                                break;
+                            }
+                        }
+                    }
+                },
+                .ENDING => {
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .TITLE;
+                    game.framesCounter += 1;
+                },
+            }
         }
 
         // DRAW
-        raylib.BeginDrawing();
-        defer raylib.EndDrawing();
+        {
+            raylib.BeginDrawing();
+            defer raylib.EndDrawing();
 
-        raylib.ClearBackground(raylib.RAYWHITE);
+            raylib.ClearBackground(raylib.RAYWHITE);
 
-        switch (game.screen) {
-            .LOGO => {
-                raylib.DrawText("LOGO SCREEN", 20, 20, 40, raylib.LIGHTGRAY);
-                raylib.DrawText("WAIT for 3 SECONDS...", 290, 220, 20, raylib.GRAY);
-            },
-            .TITLE => {
-                const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
-                const fontSize = 20;
-                raylib.DrawRectangle(0, 0, screenSize.x, screenSize.y, raylib.GREEN);
-                raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
-                const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
-                if ((game.framesCounter / (fps / 2) % 2) == 0) {
-                    raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKGREEN);
-                }
-            },
-            .GAMEPLAY => {
-                raylib.DrawRectangle(
-                    0,
-                    0,
-                    screenSize.x,
-                    screenSize.y,
-                    raylib.PURPLE,
-                );
-                raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
+            switch (game.screen) {
+                .LOGO => {
+                    raylib.DrawText("LOGO SCREEN", 20, 20, 40, raylib.LIGHTGRAY);
+                    raylib.DrawText("WAIT for 3 SECONDS...", 290, 220, 20, raylib.GRAY);
+                },
+                .TITLE => {
+                    const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
+                    const fontSize = 20;
+                    raylib.DrawRectangle(0, 0, screenSize.x, screenSize.y, raylib.GREEN);
+                    raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
+                    const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
+                    if ((game.framesCounter / (fps / 2) % 2) == 0) {
+                        raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKGREEN);
+                    }
+                },
+                .GAMEPLAY => {
+                    raylib.DrawRectangle(
+                        0,
+                        0,
+                        screenSize.x,
+                        screenSize.y,
+                        raylib.PURPLE,
+                    );
+                    raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
 
-                for (game.bricks, 0..) |brickRow, r| {
-                    for (brickRow, 0..) |brick, c| {
-                        if (brick.isActive) {
-                            const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
-                            raylib.DrawRectangleV(game.bricks[r][c].position, game.bricks[r][c].size, color);
+                    for (game.bricks, 0..) |brickRow, r| {
+                        for (brickRow, 0..) |brick, c| {
+                            if (brick.isActive) {
+                                const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
+                                raylib.DrawRectangleV(game.bricks[r][c].position, game.bricks[r][c].size, color);
+                            }
                         }
                     }
-                }
 
-                raylib.DrawRectangleV(game.player.position, game.player.size, raylib.BLACK);
-                raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
+                    raylib.DrawRectangleV(game.player.position, game.player.size, raylib.BLACK);
+                    raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
 
-                for (0..game.player.lives) |l| {
-                    raylib.DrawRectangle(@intCast(20 + 40 * l), screenSize.y - 30, 35, 10, raylib.LIGHTGRAY);
-                }
+                    for (0..game.player.lives) |l| {
+                        raylib.DrawRectangle(@intCast(20 + 40 * l), screenSize.y - 30, 35, 10, raylib.LIGHTGRAY);
+                    }
 
-                if (game.isPaused) {
-                    const paused_text = "GAME PAUSED. PRESS SPACE to RESUME";
+                    if (game.isPaused) {
+                        const paused_text = "GAME PAUSED. PRESS SPACE to RESUME";
+                        const fontSize = 20;
+                        raylib.DrawText(
+                            paused_text,
+                            @as(i32, @intFromFloat(screenSize.x / 2)) - @divFloor(raylib.MeasureText(paused_text, fontSize), 2),
+                            screenSize.y / 2.0,
+                            fontSize,
+                            raylib.GRAY,
+                        );
+                    }
+                },
+                .ENDING => {
+                    const text = "PRESS ENTER to RETURN to TITLE SCREEN";
                     const fontSize = 20;
-                    raylib.DrawText(
-                        paused_text,
-                        @as(i32, @intFromFloat(screenSize.x / 2)) - @divFloor(raylib.MeasureText(paused_text, fontSize), 2),
-                        screenSize.y / 2.0,
-                        fontSize,
-                        raylib.GRAY,
+                    raylib.DrawRectangle(
+                        0,
+                        0,
+                        screenSize.x,
+                        screenSize.y,
+                        raylib.BLUE,
                     );
-                }
-            },
-            .ENDING => {
-                const text = "PRESS ENTER to RETURN to TITLE SCREEN";
-                const fontSize = 20;
-                raylib.DrawRectangle(
-                    0,
-                    0,
-                    screenSize.x,
-                    screenSize.y,
-                    raylib.BLUE,
-                );
-                raylib.DrawText("ENDING SCREEN", 20, 20, 40, raylib.DARKBLUE);
-                const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
-                if ((game.framesCounter / (fps / 2) % 2) == 0) {
-                    raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKBLUE);
-                }
-            },
+                    raylib.DrawText("ENDING SCREEN", 20, 20, 40, raylib.DARKBLUE);
+                    const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
+                    if ((game.framesCounter / (fps / 2) % 2) == 0) {
+                        raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKBLUE);
+                    }
+                },
+            }
+
+            var end: cTime.timespec = undefined;
+            _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
+
+            const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
+            const fps_calc = 1.0 / frame_time_s;
+            start = end;
+            raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_calc), 0, 20, 20, raylib.BLACK);
         }
-
-        var end: cTime.timespec = undefined;
-        _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
-
-        const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
-        const fps_calc = 1.0 / frame_time_s;
-        start = end;
-        raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_calc), 0, 20, 20, raylib.BLACK);
     }
 }
 
