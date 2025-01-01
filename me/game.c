@@ -23,9 +23,9 @@ OSI-certified,
 *
 ********************************************************************************************/
 
-#include "raylib.h"
-#include <stdio.h>
 #include <time.h>
+
+#include "raylib.h"
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -54,14 +54,15 @@ int main(void) {
   GameScreen screen = LOGO; // Current game screen state
 
   int framesCounter = 0; // General purpose frames counter
-  int framesCounter2 = 0; // General purpose frames counter
   struct timespec start;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
   bool gamePaused = false; // Game paused state toggle
 
   // TODO: Define and Initialize game variables
 
-  SetTargetFPS(10); // Set desired framerate (frames per second)
+  int const fps = 10;
+
+  SetTargetFPS(fps); // Set desired framerate (frames per second)
   //--------------------------------------------------------------------------------------
 
   // Main game loop
@@ -75,7 +76,7 @@ int main(void) {
 
       framesCounter++;
 
-      if (framesCounter > 180) {
+      if (framesCounter > 3*fps) {
         screen = TITLE; // Change to TITLE screen after 3 seconds
         framesCounter = 0;
       }
@@ -175,10 +176,7 @@ int main(void) {
 
     double fps = 1 / frame_time_s;
     start = end;
-    ++framesCounter2;
     DrawText(TextFormat("FPS 3: %.1f", fps), 0, 40, 40, BLACK);
-    printf("frame_time: %.3f, fps 3: %.1f\n", frame_time_s, fps);
-    DrawText(TextFormat("Frame count: %d", framesCounter2), 0, 60, 20, RED);
 
     EndDrawing();
     //----------------------------------------------------------------------------------
