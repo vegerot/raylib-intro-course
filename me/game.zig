@@ -139,6 +139,19 @@ pub fn main() void {
     const initial_fps = 24;
     var fps_float: f32 = @floatFromInt(initial_fps);
 
+    const textures: struct {
+        logo: raylib.Texture2D,
+        ball: raylib.Texture2D,
+        paddle: raylib.Texture2D,
+        brick: raylib.Texture2D,
+    } = .{
+        .logo = raylib.LoadTexture("lessons/resources/raylib_logo.png"),
+        .ball = raylib.LoadTexture("lessons/resources/ball.png"),
+        .paddle = raylib.LoadTexture("lessons/resources/paddle.png"),
+        .brick = raylib.LoadTexture("lessons/resources/brick.png"),
+    };
+
+    var shouldShowHitboxes = false;
     const ballRadius = 10;
     const initialPlayerPosition = raylib.Vector2{
         .x = screenSize.x / 2.0,
@@ -252,6 +265,7 @@ pub fn main() void {
                         game.ball.velocity.y *= 2;
                     }
                     if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
+                    if (raylib.IsKeyPressed('H')) shouldShowHitboxes = !shouldShowHitboxes;
                     if (!game.ball.isActive) {
                         // reset ball after losing
                         game.ball.position = raylib.Vector2{
@@ -360,18 +374,38 @@ pub fn main() void {
 
                     for (game.bricks, 0..) |brickRow, r| {
                         for (brickRow, 0..) |brick, c| {
-                            if (brick.isActive) {
-                                const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
-                                raylib.DrawRectangleV(game.bricks[r][c].position, game.bricks[r][c].size, color);
-                            }
+                            if (!brick.isActive) continue;
+                            const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
+                            raylib.DrawTextureV(textures.brick, brick.position, color);
                         }
                     }
+                    raylib.DrawTextureV(textures.paddle, game.player.position, raylib.RAYWHITE);
+                    raylib.DrawTextureV(
+                        textures.ball,
+                        .{ .x = game.ball.position.x - game.ball.radius, .y = game.ball.position.y - game.ball.radius },
+                        raylib.MAROON,
+                    );
 
-                    raylib.DrawRectangleV(game.player.position, game.player.size, raylib.BLACK);
-                    raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
-
+                    if (shouldShowHitboxes) {
+                        raylib.BeginBlendMode(raylib.BLEND_ADD_COLORS);
+                        defer raylib.EndBlendMode();
+                        for (game.bricks, 0..) |brickRow, r| {
+                            for (brickRow, 0..) |brick, c| {
+                                if (brick.isActive) {
+                                    const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
+                                    raylib.DrawRectangleV(game.bricks[r][c].position, game.bricks[r][c].size, color);
+                                }
+                            }
+                        }
+                        raylib.DrawRectangleV(game.player.position, game.player.size, raylib.RAYWHITE);
+                        raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
+                    }
                     for (0..game.player.lives) |l| {
-                        raylib.DrawRectangle(@intCast(20 + 40 * l), @as(i32, @intFromFloat(screenSize.y)) - 30, 35, 10, raylib.LIGHTGRAY);
+                        // raylib.DrawRectangle(@intCast(20 + 40 * l), @as(i32, @intFromFloat(screenSize.y)) - 30, 35, 10, raylib.LIGHTGRAY);
+                        raylib.DrawTextureEx(textures.paddle, .{
+                            .x = @floatFromInt(10 + 40 * l),
+                            .y = screenSize.y - 30,
+                        }, 0, 0.35, raylib.RAYWHITE);
                     }
 
                     if (game.isPaused) {
