@@ -31,10 +31,37 @@ OSI-certified,
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 
+#define PLAYER_LIVES 5
+#define BRICKS_LINES 5
+#define BRICKS_PER_LINE 20
+
+#define BRICKS_POSITION_Y 50
+
 // LESSON 01: Window initialization and screens management
 typedef enum GameScreen { LOGO, TITLE, GAMEPLAY, ENDING } GameScreen;
 
-// TODO: Define required structs
+typedef struct {
+  Vector2 position;
+  Vector2 velocity;
+  Vector2 size;
+  Rectangle bounds;
+  int lives;
+} Player;
+
+typedef struct {
+  Vector2 position;
+  Vector2 velocity;
+  float radius;
+  bool active;
+} Ball;
+
+typedef struct {
+  Vector2 position;
+  Vector2 size;
+  Rectangle bounds;
+  int resistance;
+  bool active;
+} Brick;
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -58,10 +85,46 @@ int main(void) {
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
   bool gamePaused = false; // Game paused state toggle
 
-  // TODO: Define and Initialize game variables
+  Player player = {
+      .position = {screenWidth / 2.0, screenHeight * 7.0 / 8},
+      .velocity = (Vector2){8.0f, 0.0f},
+      .size = {100, 24},
+      .lives = PLAYER_LIVES,
+  };
+  const int ballRadius = 10;
+  Ball ball = {.radius = ballRadius,
+               .position =
+                   {
+                       .x = player.position.x + player.size.x / 2,
+                       .y = player.position.y - ballRadius * 2,
+                   },
+               .velocity = {4.0f, 4.0f},
+               .active = false
 
-  int const fps = 10;
+  };
 
+  Brick bricks[BRICKS_LINES][BRICKS_PER_LINE] = {0};
+  const float brickWidth = (float)screenWidth / BRICKS_PER_LINE;
+  const float brickHeight = 20;
+
+  // initialize bricks
+  for (int r = 0; r < BRICKS_LINES; ++r) {
+    for (int c = 0; c < BRICKS_PER_LINE; ++c) {
+      bricks[r][c] = (Brick){
+          .size = {brickWidth, 20},
+          .position = {c * brickWidth, r * brickHeight + BRICKS_POSITION_Y},
+          .bounds =
+              (Rectangle){
+                  c * brickWidth,
+                  r * brickHeight + BRICKS_POSITION_Y,
+                  .width = brickWidth,
+                  .height = brickHeight,
+              },
+          .active = true};
+    }
+  }
+
+  int const fps = 240;
   SetTargetFPS(fps); // Set desired framerate (frames per second)
   //--------------------------------------------------------------------------------------
 
@@ -76,7 +139,7 @@ int main(void) {
 
       framesCounter++;
 
-      if (framesCounter > 3*fps) {
+      if (framesCounter > 3 * fps || IsKeyPressed(KEY_ENTER)) {
         screen = TITLE; // Change to TITLE screen after 3 seconds
         framesCounter = 0;
       }
@@ -93,11 +156,11 @@ int main(void) {
 
     } break;
     case GAMEPLAY: {
-      // Update GAMEPLAY screen data here!
+      // Draw GAMEPLAY screen data here!
 
       if (!gamePaused) {
         // TODO: Gameplay logic
-          ++framesCounter;
+        ++framesCounter;
       }
 
       if (IsKeyPressed(KEY_ENTER))
@@ -122,61 +185,91 @@ int main(void) {
     // Draw
     //----------------------------------------------------------------------------------
     BeginDrawing();
+    {
 
-    ClearBackground(RAYWHITE);
-    // DrawText(GetFPS(), 0, 0, 14, DARKGRAY);
+      ClearBackground(RAYWHITE);
 
-    switch (screen) {
-    case LOGO: {
-      // TODO: Draw LOGO screen here!
-      DrawText("LOGO SCREEN", 20, 20, 40, LIGHTGRAY);
-      DrawText("WAIT for 3 SECONDS...", 290, 220, 20, GRAY);
+      switch (screen) {
+      case LOGO: {
+        // TODO: Draw LOGO screen here!
+        DrawText("LOGO SCREEN", 20, 20, 40, LIGHTGRAY);
+        DrawText("WAIT for 3 SECONDS...", 290, 220, 20, GRAY);
 
-    } break;
-    case TITLE: {
-      // TODO: Draw TITLE screen here!
-      char const *text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
-      int fontSize = 20;
-      DrawRectangle(0, 0, screenWidth, screenHeight, GREEN);
-      DrawText("TITLE SCREEN", 20, 20, 40, DARKGREEN);
-      DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
-               fontSize, DARKGREEN);
+      } break;
+      case TITLE: {
+        // TODO: Draw TITLE screen here!
+        char const *text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
+        int fontSize = 20;
+        DrawRectangle(0, 0, screenWidth, screenHeight, GREEN);
+        DrawText("TITLE SCREEN", 20, 20, 40, DARKGREEN);
+        if ((framesCounter / (fps / 2) % 2 == 0)) {
+          DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
+                   fontSize, DARKGREEN);
+        }
 
-    } break;
-    case GAMEPLAY: {
-      // TODO: Draw GAMEPLAY screen here!
-      char *text = "PRESS ENTER to JUMP to ENDING SCREEN";
-      int fontSize = 20;
-      DrawRectangle(0, 0, screenWidth, screenHeight, PURPLE);
-      DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
-      DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
-               fontSize, MAROON);
+      } break;
+      case GAMEPLAY: {
+        // TODO: Draw GAMEPLAY screen here!
 
-    } break;
-    case ENDING: {
-      // TODO: Draw ENDING screen here!
-      char *text = "PRESS ENTER to RETURN to TITLE SCREEN";
-      int fontSize = 20;
-      DrawRectangle(0, 0, screenWidth, screenHeight, BLUE);
-      DrawText("ENDING SCREEN", 20, 20, 40, DARKBLUE);
-      DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
-               fontSize, DARKBLUE);
+        char *text = "PRESS ENTER to JUMP to ENDING SCREEN";
+        int fontSize = 20;
+        DrawRectangle(0, 0, screenWidth, screenHeight, PURPLE);
+        DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
+        DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
+                 fontSize, MAROON);
 
-    } break;
-    default:
-      break;
+        // LESSON 02: Draw basic shapes (circle, rectangle)
+        DrawRectangle(player.position.x, player.position.y, player.size.x,
+                      player.size.y, BLACK);
+        DrawCircleV(ball.position, ball.radius, MAROON);
+
+        // draw bricks
+        for (int r = 0; r < BRICKS_LINES; ++r) {
+          for (int c = 0; c < BRICKS_PER_LINE; ++c) {
+            if (bricks[r][c].active) {
+              Color color = (r + c) % 2 == 0 ? GRAY : DARKGRAY;
+              DrawRectangleV(bricks[r][c].position, bricks[r][c].size, color);
+            }
+          }
+        }
+
+        // Draw GUI; player lives
+        for (int l = 0; l < player.lives; ++l)
+          DrawRectangle(20 + 40 * l, screenHeight - 30, 35, 10, LIGHTGRAY);
+
+        if (gamePaused)
+          DrawText("GAME PAUSED", screenWidth / 2,
+                   MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 + 60,
+                   GRAY);
+
+      } break;
+      case ENDING: {
+        // TODO: Draw ENDING screen here!
+        char *text = "PRESS ENTER to RETURN to TITLE SCREEN";
+        int fontSize = 20;
+        DrawRectangle(0, 0, screenWidth, screenHeight, BLUE);
+        DrawText("ENDING SCREEN", 20, 20, 40, DARKBLUE);
+        if ((framesCounter / (fps / 2)) % 2 == 0)
+          DrawText(text, screenWidth / 2 - MeasureText(text, fontSize) / 2, 220,
+                   fontSize, DARKBLUE);
+
+      } break;
+      default:
+        break;
+      }
+
+      // DrawFPS(0, 0);
+      // DrawText(TextFormat("FPS 2: %i", GetFPS()), 0, 10, 20, RED);
+      struct timespec end;
+      clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+      float frame_time_s =
+          (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+      double fps = 1 / frame_time_s;
+      start = end;
+      DrawText(TextFormat("FPS 3: %.1f", fps), 0, 20, 20, BLACK);
     }
-
-    DrawFPS(0, 0);
-    DrawText(TextFormat("FPS 2: %i", GetFPS()), 0, 10, 20, RED);
-    struct timespec end;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
-    float frame_time_s = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-
-    double fps = 1 / frame_time_s;
-    start = end;
-    DrawText(TextFormat("FPS 3: %.1f", fps), 0, 40, 40, BLACK);
 
     EndDrawing();
     //----------------------------------------------------------------------------------
@@ -192,4 +285,3 @@ int main(void) {
 
   return 0;
 }
-
