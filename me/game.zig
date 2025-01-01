@@ -30,8 +30,8 @@ const Ball = struct {
     position: raylib.Vector2,
     velocity: raylib.Vector2,
     radius: f32,
-    active: bool,
-    pub fn checkWallCollisionAndBounce(self: *Ball, screenSize: raylib.Vector2) void {
+    isActive: bool,
+    pub fn checkWallCollisionAndBounceOrLose(self: *Ball, screenSize: raylib.Vector2) bool {
         if (self.position.x - self.radius < 0) {
             self.position.x = self.radius;
             self.velocity.x *= -1;
@@ -44,9 +44,9 @@ const Ball = struct {
             self.position.y = self.radius;
             self.velocity.y *= -1;
         } else if (self.position.y + self.radius > screenSize.y) {
-            self.position.y = screenSize.y - self.radius;
-            self.velocity.y *= -1;
+            return true;
         }
+        return false;
     }
 };
 
@@ -55,7 +55,7 @@ const Brick = struct {
     size: raylib.Vector2,
     bounds: raylib.Rectangle,
     resistance: i32,
-    active: bool,
+    isActive: bool,
 };
 
 pub fn main() void {
@@ -72,7 +72,7 @@ pub fn main() void {
     var framesCounter: u32 = 0;
     var start: cTime.timespec = undefined;
     _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &start);
-    const gamePaused: bool = false;
+    var isGamePaused: bool = false;
 
     var player = Player{
         .position = raylib.Vector2{
@@ -89,10 +89,10 @@ pub fn main() void {
         },
         .lives = PLAYER_LIVES,
         .bounds = raylib.Rectangle{
-            .x = 0,
-            .y = 0,
-            .height = 0,
-            .width = 0,
+            .x = -1,
+            .y = -1,
+            .height = -1,
+            .width = -1,
         },
     };
     const ballRadius = 10;
@@ -100,7 +100,7 @@ pub fn main() void {
         .radius = ballRadius,
         .position = raylib.Vector2{ .x = player.position.x + player.size.x / 2, .y = player.position.y - ballRadius * 2 },
         .velocity = raylib.Vector2{ .x = 69.0 / fps_float, .y = -42.0 / fps_float },
-        .active = false,
+        .isActive = true,
     };
 
     // init bricks
@@ -124,7 +124,7 @@ pub fn main() void {
                     .width = brickWidth,
                     .height = brickHeight,
                 },
-                .active = true,
+                .isActive = true,
                 .resistance = 0,
             };
         }
@@ -146,11 +146,30 @@ pub fn main() void {
 
                 player.lives = PLAYER_LIVES;
             },
-            .GAMEPLAY => {
+            .GAMEPLAY => gameplay: {
                 if (raylib.IsKeyPressed(raylib.KEY_ENTER)) screen = .ENDING;
-                if (!gamePaused) {
-                    framesCounter += 1;
+                if (raylib.IsKeyPressed(raylib.KEY_PERIOD)) {
+                    ball.velocity.x *= 2;
+                    ball.velocity.y *= 2;
                 }
+                if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) isGamePaused = !isGamePaused;
+                if (!ball.isActive) {
+                    // reset ball after losing
+                    ball.position = raylib.Vector2{
+                        .x = player.position.x + player.size.x / 2,
+                        .y = player.position.y - player.size.y / 2 - ball.radius / 2,
+                    };
+                    ball.velocity = raylib.Vector2{
+                        .x = 42.0 / fps_float,
+                        .y = -69.0 / fps_float,
+                    };
+                    ball.isActive = true;
+                    isGamePaused = true;
+                }
+                if (isGamePaused) {
+                    break :gameplay;
+                }
+                framesCounter += 1;
 
                 // input
                 if (raylib.IsKeyDown(raylib.KEY_LEFT)) player.position.x -= player.velocity.x;
@@ -164,7 +183,14 @@ pub fn main() void {
                     .x = ball.position.x + ball.velocity.x,
                     .y = ball.position.y + ball.velocity.y,
                 };
-                ball.checkWallCollisionAndBounce(screenSize);
+                if (ball.checkWallCollisionAndBounceOrLose(screenSize)) {
+                    ball.isActive = false;
+                    player.lives -= 1;
+                    if (player.lives <= 0) {
+                        screen = .ENDING;
+                        break :gameplay;
+                    }
+                }
             },
             .ENDING => {
                 if (raylib.IsKeyPressed(raylib.KEY_ENTER)) screen = .TITLE;
@@ -194,8 +220,6 @@ pub fn main() void {
                 }
             },
             .GAMEPLAY => {
-                const text = "PRESS ENTER to JUMP to ENDING SCREEN";
-                const fontSize = 20;
                 raylib.DrawRectangle(
                     0,
                     0,
@@ -204,12 +228,10 @@ pub fn main() void {
                     raylib.PURPLE,
                 );
                 raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
-                const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
-                raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.MAROON);
 
                 for (bricks, 0..) |brickRow, r| {
                     for (brickRow, 0..) |brick, c| {
-                        if (brick.active) {
+                        if (brick.isActive) {
                             const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
                             raylib.DrawRectangleV(bricks[r][c].position, bricks[r][c].size, color);
                         }
@@ -223,8 +245,16 @@ pub fn main() void {
                     raylib.DrawRectangle(@intCast(20 + 40 * l), screenSize.y - 30, 35, 10, raylib.LIGHTGRAY);
                 }
 
-                if (gamePaused) {
-                    raylib.DrawText("GAME PAUSED", screenSize.x / 2, raylib.MeasureText("GAME PAUSED", 40) / 2, screenSize.y / 2 + 60, raylib.GRAY);
+                if (isGamePaused) {
+                    const paused_text = "GAME PAUSED. PRESS SPACE to RESUME";
+                    const fontSize = 20;
+                    raylib.DrawText(
+                        paused_text,
+                        @as(i32, @intFromFloat(screenSize.x / 2)) - @divFloor(raylib.MeasureText(paused_text, fontSize), 2),
+                        screenSize.y / 2.0,
+                        fontSize,
+                        raylib.GRAY,
+                    );
                 }
             },
             .ENDING => {
