@@ -131,9 +131,10 @@ var colCount: c_int = 0;
 
 pub fn main() void {
     // INIT
-    const screenSize: raylib.Vector2 = raylib.Vector2{ .x = 800, .y = 450 };
+    var screenSize: raylib.Vector2 = .{ .x = 800, .y = 450 };
 
-    raylib.InitWindow(screenSize.x, screenSize.y, "PROJECT: BLOCKS GAME");
+    raylib.InitWindow(@intFromFloat(screenSize.x), @intFromFloat(screenSize.y), "PROJECT: BLOCKS GAME");
+    raylib.SetWindowState(raylib.FLAG_WINDOW_RESIZABLE);
     defer raylib.CloseWindow();
     const initial_fps = 24;
     var fps_float: f32 = @floatFromInt(initial_fps);
@@ -210,18 +211,25 @@ pub fn main() void {
     }
 
     while (!raylib.WindowShouldClose()) {
-        // calculate fps
-        {
-            var end: cTime.timespec = undefined;
-            _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
-
-            const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
-            const fps_calc = 1.0 / frame_time_s;
-            fps_float = fps_calc;
-            start = end;
-        }
         // UPDATE
         {
+            // calculate fps
+            {
+                var end: cTime.timespec = undefined;
+                _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end);
+
+                const frame_time_s: f32 = @as(f32, @floatFromInt(end.tv_sec - start.tv_sec)) + @as(f32, @floatFromInt(end.tv_nsec - start.tv_nsec)) / (1e9);
+                const fps_calc = 1.0 / frame_time_s;
+                fps_float = fps_calc;
+                start = end;
+            }
+            // update screen size
+            {
+                screenSize = .{
+                    .x = @floatFromInt(raylib.GetScreenWidth()),
+                    .y = @floatFromInt(raylib.GetScreenHeight()),
+                };
+            }
             switch (game.screen) {
                 .LOGO => {
                     if (game.framesCounter > 3 * initial_fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
@@ -333,7 +341,7 @@ pub fn main() void {
                 .TITLE => {
                     const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
                     const fontSize = 20;
-                    raylib.DrawRectangle(0, 0, screenSize.x, screenSize.y, raylib.GREEN);
+                    raylib.DrawRectangle(0, 0, @intFromFloat(screenSize.x), @intFromFloat(screenSize.y), raylib.GREEN);
                     raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
                     const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
                     if ((game.framesCounter / (initial_fps / 2) % 2) == 0) {
@@ -344,8 +352,8 @@ pub fn main() void {
                     raylib.DrawRectangle(
                         0,
                         0,
-                        screenSize.x,
-                        screenSize.y,
+                        @intFromFloat(screenSize.x),
+                        @intFromFloat(screenSize.y),
                         raylib.PURPLE,
                     );
                     raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
@@ -363,7 +371,7 @@ pub fn main() void {
                     raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
 
                     for (0..game.player.lives) |l| {
-                        raylib.DrawRectangle(@intCast(20 + 40 * l), screenSize.y - 30, 35, 10, raylib.LIGHTGRAY);
+                        raylib.DrawRectangle(@intCast(20 + 40 * l), @as(i32, @intFromFloat(screenSize.y)) - 30, 35, 10, raylib.LIGHTGRAY);
                     }
 
                     if (game.isPaused) {
@@ -372,7 +380,7 @@ pub fn main() void {
                         raylib.DrawText(
                             paused_text,
                             @as(i32, @intFromFloat(screenSize.x / 2)) - @divFloor(raylib.MeasureText(paused_text, fontSize), 2),
-                            screenSize.y / 2.0,
+                            @as(i32, @intFromFloat(screenSize.y / 2)),
                             fontSize,
                             raylib.GRAY,
                         );
@@ -384,8 +392,8 @@ pub fn main() void {
                     raylib.DrawRectangle(
                         0,
                         0,
-                        screenSize.x,
-                        screenSize.y,
+                        @intFromFloat(screenSize.x),
+                        @intFromFloat(screenSize.y),
                         raylib.BLUE,
                     );
                     raylib.DrawText("ENDING SCREEN", 20, 20, 40, raylib.DARKBLUE);
