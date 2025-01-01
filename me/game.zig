@@ -268,6 +268,9 @@ pub fn main() void {
                     if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x / fps_float;
                     if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y / fps_float;
                     if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y / fps_float;
+                    const mouseMove = raylib.GetMouseDelta();
+                    game.player.position.x += mouseMove.x;
+                    game.player.position.y += mouseMove.y;
                     _ = clampPosition(&game.player.position, game.player.size, screenSize);
                     game.player.updateBounds();
 
