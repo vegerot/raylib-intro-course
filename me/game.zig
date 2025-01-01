@@ -361,8 +361,16 @@ pub fn main() void {
 
             switch (game.screen) {
                 .LOGO => {
+                    raylib.DrawTextureV(
+                        textures.logo,
+                        raylib.Vector2{
+                            .x = screenSize.x / 2 - @as(f32, @floatFromInt(textures.logo.width)) / 2.0,
+                            .y = screenSize.y / 2 - @as(f32, @floatFromInt(textures.logo.height)) / 2.0,
+                        },
+                        raylib.WHITE,
+                    );
                     raylib.DrawText("LOGO SCREEN", 20, 20, 40, raylib.LIGHTGRAY);
-                    raylib.DrawText("WAIT for 3 SECONDS...", 290, 220, 20, raylib.GRAY);
+                    raylib.DrawText("Powered by", 290, 220, 20, raylib.GRAY);
                 },
                 .TITLE => {
                     const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
@@ -452,6 +460,10 @@ pub fn main() void {
             if (shouldShowFps)
                 raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_float), 0, 20, 20, raylib.BLACK);
         }
+    }
+    inline for (comptime std.meta.fields(@TypeOf(textures))) |field| {
+        const texture = @field(textures, field.name);
+        raylib.UnloadTexture(texture);
     }
 }
 
