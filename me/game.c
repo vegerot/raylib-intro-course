@@ -135,27 +135,29 @@ int main(void) {
     //----------------------------------------------------------------------------------
     switch (screen) {
     case LOGO: {
-      // Update LOGO screen data here!
-
-      framesCounter++;
-
       if (framesCounter > 3 * fps || IsKeyPressed(KEY_ENTER)) {
         screen = TITLE; // Change to TITLE screen after 3 seconds
         framesCounter = 0;
       }
 
+      // Update LOGO screen data here!
+      framesCounter++;
+
+
     } break;
     case TITLE: {
+      if (IsKeyPressed(KEY_ENTER))
+        screen = GAMEPLAY;
       // Update TITLE screen data here!
 
       framesCounter++;
 
       // LESSON 03: Inputs management (keyboard, mouse)
-      if (IsKeyPressed(KEY_ENTER))
-        screen = GAMEPLAY;
 
     } break;
     case GAMEPLAY: {
+      if (IsKeyPressed(KEY_ENTER))
+        screen = ENDING;
       // Draw GAMEPLAY screen data here!
 
       if (!gamePaused) {
@@ -163,18 +165,15 @@ int main(void) {
         ++framesCounter;
       }
 
-      if (IsKeyPressed(KEY_ENTER))
-        screen = ENDING;
-
     } break;
     case ENDING: {
+      if (IsKeyPressed(KEY_ENTER))
+        screen = TITLE;
       // Update END screen data here!
 
       framesCounter++;
 
       // LESSON 03: Inputs management (keyboard, mouse)
-      if (IsKeyPressed(KEY_ENTER))
-        screen = TITLE;
 
     } break;
     default:
@@ -268,7 +267,7 @@ int main(void) {
 
       double fps = 1 / frame_time_s;
       start = end;
-      DrawText(TextFormat("FPS 3: %.1f", fps), 0, 20, 20, BLACK);
+      DrawText(TextFormat("FPS: %.1f", fps), 0, 20, 20, BLACK);
     }
 
     EndDrawing();
