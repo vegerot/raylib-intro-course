@@ -58,9 +58,21 @@ const Brick = struct {
     isActive: bool,
 };
 
+const Game = struct {
+    screen: GameScreen,
+    isPaused: bool,
+    player: Player,
+    ball: Ball,
+    bricks: [BRICKS_LINES][BRICKS_PER_LINE]Brick,
+};
+
+const MyV = struct {
+    x: i8,
+};
+
 pub fn main() void {
     // INIT
-    const screenSize = raylib.Vector2{ .x = 800, .y = 450 };
+    const screenSize: raylib.Vector2 = raylib.Vector2{ .x = 800, .y = 450 };
 
     raylib.InitWindow(screenSize.x, screenSize.y, "PROJECT: BLOCKS GAME");
     defer raylib.CloseWindow();
@@ -68,46 +80,55 @@ pub fn main() void {
     const fps_float: comptime_float = @floatFromInt(fps);
     raylib.SetTargetFPS(fps);
 
-    var screen: GameScreen = .LOGO;
+    const ballRadius = 10;
+    const initialPlayerPosition = raylib.Vector2{
+        .x = screenSize.x / 2.0,
+        .y = screenSize.y * 7.0 / @as(f32, @floatFromInt(8)),
+    };
+    const initialPlayerSize = raylib.Vector2{
+        .x = 100,
+        .y = 24,
+    };
+    var game: Game = Game{
+        .screen = .LOGO,
+        .isPaused = false,
+        .player = Player{
+            .position = initialPlayerPosition,
+            .velocity = raylib.Vector2{
+                .x = 690.0 / fps_float,
+                .y = 420.0 / fps_float,
+            },
+            .size = initialPlayerSize,
+            .lives = PLAYER_LIVES,
+            .bounds = raylib.Rectangle{
+                .x = -1,
+                .y = -1,
+                .height = -1,
+                .width = -1,
+            },
+        },
+        .ball = Ball{
+            .radius = ballRadius,
+            .position = raylib.Vector2{
+                .x = initialPlayerPosition.x + initialPlayerSize.x / 2,
+                .y = initialPlayerPosition.y - ballRadius * 2,
+            },
+            .velocity = raylib.Vector2{
+                .x = 69.0 / fps_float,
+                .y = -42.0 / fps_float,
+            },
+            .isActive = true,
+        },
+        .bricks = undefined,
+    };
     var framesCounter: u32 = 0;
     var start: cTime.timespec = undefined;
     _ = cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &start);
-    var isGamePaused: bool = false;
-
-    var player = Player{
-        .position = raylib.Vector2{
-            .x = screenSize.x / 2.0,
-            .y = screenSize.y * 7.0 / @as(f32, @floatFromInt(8)),
-        },
-        .velocity = raylib.Vector2{
-            .x = 690.0 / fps_float,
-            .y = 420.0 / fps_float,
-        },
-        .size = raylib.Vector2{
-            .x = 100,
-            .y = 24,
-        },
-        .lives = PLAYER_LIVES,
-        .bounds = raylib.Rectangle{
-            .x = -1,
-            .y = -1,
-            .height = -1,
-            .width = -1,
-        },
-    };
-    const ballRadius = 10;
-    var ball = Ball{
-        .radius = ballRadius,
-        .position = raylib.Vector2{ .x = player.position.x + player.size.x / 2, .y = player.position.y - ballRadius * 2 },
-        .velocity = raylib.Vector2{ .x = 69.0 / fps_float, .y = -42.0 / fps_float },
-        .isActive = true,
-    };
 
     // init bricks
-    var bricks: [BRICKS_LINES][BRICKS_PER_LINE]Brick = undefined;
     const brickWidth = screenSize.x / BRICKS_PER_LINE;
     const brickHeight = 20.0;
-    for (&bricks, 0..) |*brickRow, r| {
+    for (&game.bricks, 0..) |*brickRow, r| {
         for (brickRow, 0..) |*brick, c| {
             const rFloat = @as(f32, @floatFromInt(r));
             const cFloat = @as(f32, @floatFromInt(c));
@@ -132,68 +153,69 @@ pub fn main() void {
 
     while (!raylib.WindowShouldClose()) {
         // UPDATE
-        switch (screen) {
+        switch (game.screen) {
             .LOGO => {
                 if (framesCounter > 3 * fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
-                    screen = .TITLE;
+                    game.screen = .TITLE;
                     framesCounter = 0;
                 }
                 framesCounter += 1;
             },
             .TITLE => {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) screen = .GAMEPLAY;
+                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .GAMEPLAY;
                 framesCounter += 1;
 
-                player.lives = PLAYER_LIVES;
+                game.player.lives = PLAYER_LIVES;
             },
             .GAMEPLAY => gameplay: {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) screen = .ENDING;
+                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .ENDING;
+                // fast-forward: for debugging
                 if (raylib.IsKeyPressed(raylib.KEY_PERIOD)) {
-                    ball.velocity.x *= 2;
-                    ball.velocity.y *= 2;
+                    game.ball.velocity.x *= 2;
+                    game.ball.velocity.y *= 2;
                 }
-                if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) isGamePaused = !isGamePaused;
-                if (!ball.isActive) {
+                if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
+                if (!game.ball.isActive) {
                     // reset ball after losing
-                    ball.position = raylib.Vector2{
-                        .x = player.position.x + player.size.x / 2,
-                        .y = player.position.y - player.size.y / 2 - ball.radius / 2,
+                    game.ball.position = raylib.Vector2{
+                        .x = game.player.position.x + game.player.size.x / 2,
+                        .y = game.player.position.y - game.player.size.y / 2 - game.ball.radius / 2,
                     };
-                    ball.velocity = raylib.Vector2{
+                    game.ball.velocity = raylib.Vector2{
                         .x = 42.0 / fps_float,
                         .y = -69.0 / fps_float,
                     };
-                    ball.isActive = true;
-                    isGamePaused = true;
+                    game.ball.isActive = true;
+                    game.isPaused = true;
                 }
-                if (isGamePaused) {
+                if (game.isPaused) {
                     break :gameplay;
                 }
                 framesCounter += 1;
 
                 // input
-                if (raylib.IsKeyDown(raylib.KEY_LEFT)) player.position.x -= player.velocity.x;
-                if (raylib.IsKeyDown(raylib.KEY_RIGHT)) player.position.x += player.velocity.x;
-                if (raylib.IsKeyDown(raylib.KEY_UP)) player.position.y -= player.velocity.y;
-                if (raylib.IsKeyDown(raylib.KEY_DOWN)) player.position.y += player.velocity.y;
-                _ = clampPosition(&player.position, player.size, screenSize);
+                if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x;
+                if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x;
+                if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y;
+                if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y;
+                _ = clampPosition(&game.player.position, game.player.size, screenSize);
 
                 // physics
-                ball.position = raylib.Vector2{
-                    .x = ball.position.x + ball.velocity.x,
-                    .y = ball.position.y + ball.velocity.y,
+                game.ball.position = raylib.Vector2{
+                    .x = game.ball.position.x + game.ball.velocity.x,
+                    .y = game.ball.position.y + game.ball.velocity.y,
                 };
-                if (ball.checkWallCollisionAndBounceOrLose(screenSize)) {
-                    ball.isActive = false;
-                    player.lives -= 1;
-                    if (player.lives <= 0) {
-                        screen = .ENDING;
+                if (game.ball.checkWallCollisionAndBounceOrLose(screenSize)) {
+                    game.ball.isActive = false;
+                    game.player.lives -= 1;
+                    if (game.player.lives <= 0) {
+                        game.screen = .ENDING;
                         break :gameplay;
                     }
                 }
             },
             .ENDING => {
-                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) screen = .TITLE;
+                if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .TITLE;
                 framesCounter += 1;
             },
         }
@@ -204,7 +226,7 @@ pub fn main() void {
 
         raylib.ClearBackground(raylib.RAYWHITE);
 
-        switch (screen) {
+        switch (game.screen) {
             .LOGO => {
                 raylib.DrawText("LOGO SCREEN", 20, 20, 40, raylib.LIGHTGRAY);
                 raylib.DrawText("WAIT for 3 SECONDS...", 290, 220, 20, raylib.GRAY);
@@ -229,23 +251,23 @@ pub fn main() void {
                 );
                 raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
 
-                for (bricks, 0..) |brickRow, r| {
+                for (game.bricks, 0..) |brickRow, r| {
                     for (brickRow, 0..) |brick, c| {
                         if (brick.isActive) {
                             const color = if ((r + c) % 2 == 0) raylib.GRAY else raylib.DARKGRAY;
-                            raylib.DrawRectangleV(bricks[r][c].position, bricks[r][c].size, color);
+                            raylib.DrawRectangleV(game.bricks[r][c].position, game.bricks[r][c].size, color);
                         }
                     }
                 }
 
-                raylib.DrawRectangleV(player.position, player.size, raylib.BLACK);
-                raylib.DrawCircleV(ball.position, ball.radius, raylib.MAROON);
+                raylib.DrawRectangleV(game.player.position, game.player.size, raylib.BLACK);
+                raylib.DrawCircleV(game.ball.position, game.ball.radius, raylib.MAROON);
 
-                for (0..player.lives) |l| {
+                for (0..game.player.lives) |l| {
                     raylib.DrawRectangle(@intCast(20 + 40 * l), screenSize.y - 30, 35, 10, raylib.LIGHTGRAY);
                 }
 
-                if (isGamePaused) {
+                if (game.isPaused) {
                     const paused_text = "GAME PAUSED. PRESS SPACE to RESUME";
                     const fontSize = 20;
                     raylib.DrawText(
