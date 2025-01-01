@@ -34,27 +34,54 @@ const Player = struct {
     }
 };
 
+const BallCollisionWithWallDetection = struct {
+    x: enum {
+        none,
+        left,
+        right,
+    },
+    y: enum {
+        none,
+        top,
+        bottom,
+    },
+};
+
 const Ball = struct {
     position: raylib.Vector2,
     velocity: raylib.Vector2,
     radius: f32,
     isActive: bool,
-    pub fn checkWallCollisionAndBounceOrLose(self: *Ball, screenSize: raylib.Vector2) bool {
+    pub fn detectWallCollision(self: *Ball, screenSize: raylib.Vector2) BallCollisionWithWallDetection {
+        var result = BallCollisionWithWallDetection{ .x = .none, .y = .none };
         if (self.position.x - self.radius < 0) {
-            self.position.x = self.radius;
-            self.velocity.x *= -1;
+            result.x = .left;
         } else if (self.position.x + self.radius > screenSize.x) {
-            self.position.x = screenSize.x - self.radius;
-            self.velocity.x *= -1;
+            result.x = .right;
         }
 
         if (self.position.y - self.radius < 0) {
-            self.position.y = self.radius;
-            self.velocity.y *= -1;
+            result.y = .top;
         } else if (self.position.y + self.radius > screenSize.y) {
-            return true;
+            result.y = .bottom;
         }
-        return false;
+        return result;
+    }
+    pub fn resolveWallCollision(self: *Ball, detectionResult: BallCollisionWithWallDetection, screenSize: raylib.Vector2) void {
+        std.debug.assert(detectionResult.y != .bottom); // we should have skipped this code
+        if (detectionResult.x != .none) {
+            self.velocity.x *= -1;
+            if (detectionResult.x == .left) {
+                self.position.x = self.radius;
+            } else {
+                std.debug.assert(detectionResult.x == .right);
+                self.position.x = screenSize.x - self.radius;
+            }
+        }
+        if (detectionResult.y == .top) {
+            self.*.velocity.y *= -1;
+            self.position.y = self.radius;
+        }
     }
     pub fn invertVelocity(self: *Ball) void {
         self.velocity.x *= -1;
@@ -233,15 +260,18 @@ pub fn main() void {
                         .x = game.ball.position.x + game.ball.velocity.x / fps_float,
                         .y = game.ball.position.y + game.ball.velocity.y / fps_float,
                     };
-                    const didLose = game.ball.checkWallCollisionAndBounceOrLose(screenSize);
+                    const detectBallCollisionWithWall = game.ball.detectWallCollision(screenSize);
+                    const didLose = detectBallCollisionWithWall.y == .bottom;
                     if (didLose) {
                         game.ball.isActive = false;
                         game.player.lives -= 1;
                         if (game.player.lives <= 0) {
                             game.screen = .ENDING;
-                            break :gameplay;
                         }
+                        break :gameplay;
                     }
+                    game.ball.resolveWallCollision(detectBallCollisionWithWall, screenSize);
+
                     if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, game.player.bounds)) {
                         const newXVelocity = game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
                         game.ball.velocity.x = newXVelocity;
