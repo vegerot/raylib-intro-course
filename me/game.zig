@@ -292,11 +292,12 @@ pub fn main() void {
 
                     game.framesCounter += 1;
 
-                    // input
-                    if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x / fps_float;
-                    if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x / fps_float;
-                    if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y / fps_float;
-                    if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y / fps_float;
+                    // movement input
+                    if (raylib.IsKeyDown(raylib.KEY_LEFT) or raylib.IsKeyDown('A')) game.player.position.x -= game.player.velocity.x / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_RIGHT) or raylib.IsKeyDown('D')) game.player.position.x += game.player.velocity.x / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_UP) or raylib.IsKeyDown('W')) game.player.position.y -= game.player.velocity.y / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_DOWN) or raylib.IsKeyDown('S')) game.player.position.y += game.player.velocity.y / fps_float;
+
                     const mouseMove = raylib.GetMouseDelta();
                     game.player.position.x += mouseMove.x;
                     game.player.position.y += mouseMove.y;
