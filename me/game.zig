@@ -152,6 +152,7 @@ pub fn main() void {
     };
 
     var shouldShowHitboxes = false;
+    var shouldShowFps = true;
     const ballRadius = 10;
     const initialPlayerPosition = raylib.Vector2{
         .x = screenSize.x / 2.0,
@@ -266,6 +267,8 @@ pub fn main() void {
                     }
                     if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
                     if (raylib.IsKeyPressed('H')) shouldShowHitboxes = !shouldShowHitboxes;
+                    if (raylib.IsKeyPressed('F')) shouldShowFps = !shouldShowFps;
+
                     if (!game.ball.isActive) {
                         // reset ball after losing
                         game.ball.position = raylib.Vector2{
@@ -437,7 +440,8 @@ pub fn main() void {
                     }
                 },
             }
-            raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_float), 0, 20, 20, raylib.BLACK);
+            if (shouldShowFps)
+                raylib.DrawText(raylib.TextFormat("FPS: %.1f", fps_float), 0, 20, 20, raylib.BLACK);
         }
     }
 }
