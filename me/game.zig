@@ -135,10 +135,12 @@ pub fn main() void {
     var screenSize: raylib.Vector2 = .{ .x = 800, .y = 450 };
 
     raylib.InitWindow(@intFromFloat(screenSize.x), @intFromFloat(screenSize.y), "PROJECT: BLOCKS GAME");
-    raylib.SetWindowState(raylib.FLAG_WINDOW_RESIZABLE);
     defer raylib.CloseWindow();
-    const initial_fps = 24;
+    raylib.SetWindowState(raylib.FLAG_WINDOW_RESIZABLE);
+
+    const initial_fps = 169;
     var fps_float: f32 = @floatFromInt(initial_fps);
+    raylib.SetTargetFPS(initial_fps);
 
     const textures: struct {
         logo: raylib.Texture2D,
@@ -250,7 +252,7 @@ pub fn main() void {
 
             switch (game.screen) {
                 .LOGO => {
-                    if (game.framesCounter > 3 * initial_fps or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
+                    if (game.framesCounter > 3 * @as(i32, @intFromFloat(fps_float)) or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
                         game.screen = .TITLE;
                         game.framesCounter = 0;
                     }
@@ -263,8 +265,9 @@ pub fn main() void {
                     game.player.lives = PLAYER_LIVES;
                 },
                 .GAMEPLAY => gameplay: {
+                    // meta input
                     if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .ENDING;
-                    // fast-forward: for debugging
+                    //// fast-forward: for debugging
                     if (raylib.IsKeyPressed(raylib.KEY_PERIOD)) {
                         game.ball.velocity.x *= 2;
                         game.ball.velocity.y *= 2;
@@ -285,6 +288,7 @@ pub fn main() void {
                         };
                         game.ball.isActive = true;
                         game.isPaused = true;
+                        break :gameplay;
                     }
                     if (game.isPaused) {
                         break :gameplay;
@@ -301,7 +305,7 @@ pub fn main() void {
                     const mouseMove = raylib.GetMouseDelta();
                     game.player.position.x += mouseMove.x;
                     game.player.position.y += mouseMove.y;
-                    _ = clampPosition(&game.player.position, game.player.size, screenSize);
+                    clampPosition(&game.player.position, game.player.size, screenSize);
                     game.player.updateBounds();
 
                     // physics
