@@ -66,19 +66,11 @@ const Ball = struct {
         self.velocity.y *= speedMultiplier;
     }
 
-    /// keep the magnitude of the velocity the same, but set the x-direction
-    /// proportional to where on the paddle it hit
-    pub fn calculateNewVelocityAfterPaddleHit(self: *Ball, paddle: *Player) void {
-        const distanceAlongPaddle = ((self.position.x - paddle.position.x) / paddle.size.x - 0.5);
-        std.debug.print("distanceAlongPaddle = {}\n", .{distanceAlongPaddle});
-
-        const speed = @sqrt(std.math.pow(f32, self.velocity.x, 2) + std.math.pow(f32, self.velocity.y, 2));
-        const newXSpeed = speed * @sin(raylib.PI * distanceAlongPaddle);
-        const newYSpeed = -1 * speed * @cos(raylib.PI * distanceAlongPaddle);
-        self.velocity = raylib.Vector2{
-            .x = newXSpeed,
-            .y = newYSpeed,
-        };
+    pub fn calculateNewVelocityAfterPaddleHit(self: *Ball, paddle: *Player) f32 {
+        const paddleMidpoint = paddle.position.x + paddle.size.x / 2;
+        const distanceFromMidpoint = self.position.x - paddleMidpoint;
+        const normalizedDistanceAlongMidpoint = distanceFromMidpoint / paddle.size.x;
+        return normalizedDistanceAlongMidpoint * 117;
     }
 };
 
@@ -129,8 +121,8 @@ pub fn main() void {
         .player = Player{
             .position = initialPlayerPosition,
             .velocity = raylib.Vector2{
-                .x = 690.0 / fps_float,
-                .y = 420.0 / fps_float,
+                .x = 690.0,
+                .y = 420.0,
             },
             .size = initialPlayerSize,
             .lives = PLAYER_LIVES,
@@ -148,8 +140,8 @@ pub fn main() void {
                 .y = initialPlayerPosition.y - ballRadius * 2,
             },
             .velocity = raylib.Vector2{
-                .x = 69.0 / fps_float,
-                .y = -42.0 / fps_float,
+                .x = 69.0,
+                .y = -42.0,
             },
             .isActive = true,
         },
@@ -216,8 +208,8 @@ pub fn main() void {
                             .y = game.player.position.y - game.player.size.y / 2 - game.ball.radius / 2,
                         };
                         game.ball.velocity = raylib.Vector2{
-                            .x = 42.0 / fps_float,
-                            .y = -69.0 / fps_float,
+                            .x = 42.0,
+                            .y = -69.0,
                         };
                         game.ball.isActive = true;
                         game.isPaused = true;
@@ -229,17 +221,17 @@ pub fn main() void {
                     game.framesCounter += 1;
 
                     // input
-                    if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x;
-                    if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x;
-                    if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y;
-                    if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y;
+                    if (raylib.IsKeyDown(raylib.KEY_LEFT)) game.player.position.x -= game.player.velocity.x / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_RIGHT)) game.player.position.x += game.player.velocity.x / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_UP)) game.player.position.y -= game.player.velocity.y / fps_float;
+                    if (raylib.IsKeyDown(raylib.KEY_DOWN)) game.player.position.y += game.player.velocity.y / fps_float;
                     _ = clampPosition(&game.player.position, game.player.size, screenSize);
                     game.player.updateBounds();
 
                     // physics
                     game.ball.position = raylib.Vector2{
-                        .x = game.ball.position.x + game.ball.velocity.x,
-                        .y = game.ball.position.y + game.ball.velocity.y,
+                        .x = game.ball.position.x + game.ball.velocity.x / fps_float,
+                        .y = game.ball.position.y + game.ball.velocity.y / fps_float,
                     };
                     const didLose = game.ball.checkWallCollisionAndBounceOrLose(screenSize);
                     if (didLose) {
@@ -251,14 +243,17 @@ pub fn main() void {
                         }
                     }
                     if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, game.player.bounds)) {
-                        game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
+                        const newXVelocity = game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
+                        game.ball.velocity.x = newXVelocity;
+                        game.ball.velocity.y *= -1;
+                        game.ball.goFaster();
                     }
                     for (&game.bricks) |*brickRow| {
                         for (brickRow) |*brick| {
                             if (!brick.isActive) continue;
                             if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, brick.bounds)) {
                                 brick.isActive = false;
-                                game.ball.invertVelocity();
+                                game.ball.velocity.y *= -1;
                                 game.ball.goFaster();
                                 break;
                             }
