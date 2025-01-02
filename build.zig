@@ -13,14 +13,17 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.linkSystemLibrary("m");
 
-    exe.addIncludePath(b.path("../raylib/src"));
-    exe.addLibraryPath(b.path("../raylib/src"));
-    exe.linkSystemLibrary("raylib");
-
     if (target.result.isDarwin()) {
         exe.linkFramework("IOKit");
         exe.linkFramework("Cocoa");
     }
+    exe.linkSystemLibrary("opengl32");
+    exe.linkSystemLibrary("gdi32");
+    exe.linkSystemLibrary("winmm");
+
+    exe.addIncludePath(b.path("../raylib/src"));
+    exe.addLibraryPath(b.path("../raylib/src"));
+    exe.linkSystemLibrary("raylib");
 
     b.installArtifact(exe);
 

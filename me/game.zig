@@ -2,8 +2,8 @@ const std = @import("std");
 const raylib = @cImport({
     @cInclude("raylib.h");
 });
-const cTime = @cImport({
-    @cInclude("time.h");
+const cWindows = @cImport({
+    @cInclude("Windows.h");
 });
 
 const PLAYER_LIVES = 5;
@@ -138,7 +138,7 @@ pub fn main() void {
     defer raylib.CloseWindow();
     raylib.SetWindowState(raylib.FLAG_WINDOW_RESIZABLE);
 
-    const initial_fps = 169;
+    const initial_fps = 240;
     var fps_float: f32 = @floatFromInt(initial_fps);
     raylib.SetTargetFPS(initial_fps);
 
@@ -199,10 +199,12 @@ pub fn main() void {
         },
         .bricks = undefined,
     };
-    var start_of_game: cTime.timespec = undefined;
+    var start_of_game: cWindows.LARGE_INTEGER = undefined;
+    var frequency: cWindows.LARGE_INTEGER = undefined;
 
-    std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &start_of_game));
-    var start_of_frame: cTime.timespec = start_of_game;
+    std.debug.assert(cWindows.QueryPerformanceFrequency(&frequency) != 0);
+    std.debug.assert(cWindows.QueryPerformanceCounter(&start_of_game) != 0);
+    var start_of_frame: cWindows.LARGE_INTEGER = start_of_game;
 
     // init bricks
     const brickWidth = screenSize.x / BRICKS_PER_LINE;
@@ -235,14 +237,16 @@ pub fn main() void {
         {
             // calculate fps
             // technically this should be at the end of the frame, but it's close enough
-            var end_of_frame: cTime.timespec = undefined;
-            std.debug.assert(cTime.clock_gettime(cTime.CLOCK_MONOTONIC_RAW, &end_of_frame) == 0);
+            var end_of_frame: cWindows.LARGE_INTEGER = undefined;
+            std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
 
-            const frame_time_s: f32 = @as(f32, @floatFromInt(end_of_frame.tv_sec - start_of_frame.tv_sec)) + @as(f32, @floatFromInt(end_of_frame.tv_nsec - start_of_frame.tv_nsec)) / (1e9);
+            const elapsed_ticks = end_of_frame.QuadPart - start_of_frame.QuadPart;
+            const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(frequency.QuadPart));
             const fps_calc = 1.0 / frame_time_s;
             fps_float = fps_calc;
             start_of_frame = end_of_frame;
-            game.shouldFlashText = @rem((end_of_frame.tv_sec - start_of_game.tv_sec), 2) == 0;
+            const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(start_of_game.QuadPart)) / @as(f32, @floatFromInt(frequency.QuadPart));
+            game.shouldFlashText = @rem(elapsed_seconds, 2) == 0;
 
             // update screen size
             screenSize = .{
