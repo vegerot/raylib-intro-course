@@ -16,10 +16,11 @@ pub fn build(b: *std.Build) void {
     if (target.result.isDarwin()) {
         exe.linkFramework("IOKit");
         exe.linkFramework("Cocoa");
+    } else if (target.result.os.tag == .windows) {
+        exe.linkSystemLibrary("opengl32");
+        exe.linkSystemLibrary("gdi32");
+        exe.linkSystemLibrary("winmm");
     }
-    exe.linkSystemLibrary("opengl32");
-    exe.linkSystemLibrary("gdi32");
-    exe.linkSystemLibrary("winmm");
 
     exe.addIncludePath(b.path("../raylib/src"));
     exe.addLibraryPath(b.path("../raylib/src"));
