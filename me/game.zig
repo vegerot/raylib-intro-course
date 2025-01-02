@@ -6,6 +6,32 @@ const cWindows = @cImport({
     @cInclude("Windows.h");
 });
 
+const GameTime = struct {
+    pub fn init() GameTime {
+        var self: GameTime = undefined;
+        std.debug.assert(cWindows.QueryPerformanceFrequency(&self.frequency) != 0);
+        std.debug.assert(cWindows.QueryPerformanceCounter(&self.start_of_game) != 0);
+        self.start_of_frame = self.start_of_game;
+        return self;
+    }
+    pub fn GetTimeFromGameStart(self: *GameTime) f32 {
+        var end_of_frame: cWindows.LARGE_INTEGER = undefined;
+        std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
+        return (@as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(self.start_of_game.QuadPart))) / @as(f32, @floatFromInt(self.frequency.QuadPart));
+    }
+    pub fn GetFrameTime(self: *GameTime) f32 {
+        var end_of_frame: cWindows.LARGE_INTEGER = undefined;
+        std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
+        const elapsed_ticks = end_of_frame.QuadPart - self.start_of_frame.QuadPart;
+        const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(self.frequency.QuadPart));
+        self.start_of_frame = end_of_frame;
+        return frame_time_s;
+    }
+    start_of_game: cWindows.LARGE_INTEGER,
+    start_of_frame: cWindows.LARGE_INTEGER,
+    frequency: cWindows.LARGE_INTEGER,
+};
+
 const PLAYER_LIVES = 5;
 const BRICKS_LINES = 5;
 const BRICKS_PER_LINE = 20;
@@ -199,12 +225,7 @@ pub fn main() void {
         },
         .bricks = undefined,
     };
-    var start_of_game: cWindows.LARGE_INTEGER = undefined;
-    var frequency: cWindows.LARGE_INTEGER = undefined;
-
-    std.debug.assert(cWindows.QueryPerformanceFrequency(&frequency) != 0);
-    std.debug.assert(cWindows.QueryPerformanceCounter(&start_of_game) != 0);
-    var start_of_frame: cWindows.LARGE_INTEGER = start_of_game;
+    var fpsMeasurer: GameTime = GameTime.init();
 
     // init bricks
     const brickWidth = screenSize.x / BRICKS_PER_LINE;
@@ -237,16 +258,11 @@ pub fn main() void {
         {
             // calculate fps
             // technically this should be at the end of the frame, but it's close enough
-            var end_of_frame: cWindows.LARGE_INTEGER = undefined;
-            std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
 
-            const elapsed_ticks = end_of_frame.QuadPart - start_of_frame.QuadPart;
-            const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(frequency.QuadPart));
-            const fps_calc = 1.0 / frame_time_s;
-            fps_float = fps_calc;
-            start_of_frame = end_of_frame;
-            const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(start_of_game.QuadPart)) / @as(f32, @floatFromInt(frequency.QuadPart));
-            game.shouldFlashText = @rem(elapsed_seconds, 2) == 0;
+            const frame_time_s = fpsMeasurer.GetFrameTime();
+            fps_float = 1.0 / frame_time_s;
+            const elapsed_seconds = fpsMeasurer.GetTimeFromGameStart();
+            game.shouldFlashText = @rem(@as(i16, @intFromFloat(elapsed_seconds)), 2) == 0;
 
             // update screen size
             screenSize = .{
