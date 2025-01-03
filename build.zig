@@ -2,10 +2,12 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
     const exe = b.addExecutable(.{
         .name = "bricks",
         .root_source_file = b.path("me/game.zig"),
         .target = target,
+        .optimize = optimize,
     });
     const check_step = b.step("check", "");
     check_step.dependOn(&exe.step);
