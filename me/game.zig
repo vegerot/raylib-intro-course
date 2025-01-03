@@ -9,70 +9,61 @@ const is_posix = switch (builtin.os.tag) {
     else => true,
 };
 
-const GameTime = if (is_posix)
-ret: {
+const GameTime = if (is_posix) struct {
     const cTime = @cImport({
         @cInclude("time.h");
     });
-    const GameTimePosix = struct {
-        const Self = @This();
-        pub fn init() Self {
-            var self: Self = undefined;
-            self.start_of_game = undefined;
-            std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &self.start_of_game));
-            self.start_of_frame = self.start_of_game;
-            return self;
-        }
-        pub fn GetTimeFromGameStart(self: *Self) f32 {
-            var end_of_frame: cTime.timespec = undefined;
-            std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
-            return (@as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_game.tv_sec))) + (@as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_game.tv_nsec))) / 1_000_000_000.0;
-        }
-        pub fn GetFrameTime(self: *Self) f32 {
-            var end_of_frame: cTime.timespec = undefined;
-            std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
-            const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_sec));
-            const elapsed_nanos = @as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_nsec));
-            self.start_of_frame = end_of_frame;
-            return elapsed_seconds + elapsed_nanos / 1_000_000_000.0;
-        }
-        start_of_game: cTime.timespec,
-        start_of_frame: cTime.timespec,
-    };
-
-    break :ret GameTimePosix;
-} else ret: {
+    const Self = @This();
+    pub fn init() Self {
+        var self: Self = undefined;
+        self.start_of_game = undefined;
+        std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &self.start_of_game));
+        self.start_of_frame = self.start_of_game;
+        return self;
+    }
+    pub fn GetTimeFromGameStart(self: *Self) f32 {
+        var end_of_frame: cTime.timespec = undefined;
+        std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
+        return (@as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_game.tv_sec))) + (@as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_game.tv_nsec))) / 1_000_000_000.0;
+    }
+    pub fn GetFrameTime(self: *Self) f32 {
+        var end_of_frame: cTime.timespec = undefined;
+        std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
+        const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_sec));
+        const elapsed_nanos = @as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_nsec));
+        self.start_of_frame = end_of_frame;
+        return elapsed_seconds + elapsed_nanos / 1_000_000_000.0;
+    }
+    start_of_game: cTime.timespec,
+    start_of_frame: cTime.timespec,
+} else struct {
     const cWindows = @cImport({
         @cInclude("Windows.h");
     });
-
-    const GameTimeWindows = struct {
-        const Self = @This();
-        pub fn init() Self {
-            var self: Self = undefined;
-            std.debug.assert(cWindows.QueryPerformanceFrequency(&self.frequency) != 0);
-            std.debug.assert(cWindows.QueryPerformanceCounter(&self.start_of_game) != 0);
-            self.start_of_frame = self.start_of_game;
-            return self;
-        }
-        pub fn GetTimeFromGameStart(self: *Self) f32 {
-            var end_of_frame: cWindows.LARGE_INTEGER = undefined;
-            std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
-            return (@as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(self.start_of_game.QuadPart))) / @as(f32, @floatFromInt(self.frequency.QuadPart));
-        }
-        pub fn GetFrameTime(self: *Self) f32 {
-            var end_of_frame: cWindows.LARGE_INTEGER = undefined;
-            std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
-            const elapsed_ticks = end_of_frame.QuadPart - self.start_of_frame.QuadPart;
-            const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(self.frequency.QuadPart));
-            self.start_of_frame = end_of_frame;
-            return frame_time_s;
-        }
-        start_of_game: cWindows.LARGE_INTEGER,
-        start_of_frame: cWindows.LARGE_INTEGER,
-        frequency: cWindows.LARGE_INTEGER,
-    };
-    break :ret GameTimeWindows;
+    const Self = @This();
+    pub fn init() Self {
+        var self: Self = undefined;
+        std.debug.assert(cWindows.QueryPerformanceFrequency(&self.frequency) != 0);
+        std.debug.assert(cWindows.QueryPerformanceCounter(&self.start_of_game) != 0);
+        self.start_of_frame = self.start_of_game;
+        return self;
+    }
+    pub fn GetTimeFromGameStart(self: *Self) f32 {
+        var end_of_frame: cWindows.LARGE_INTEGER = undefined;
+        std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
+        return (@as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(self.start_of_game.QuadPart))) / @as(f32, @floatFromInt(self.frequency.QuadPart));
+    }
+    pub fn GetFrameTime(self: *Self) f32 {
+        var end_of_frame: cWindows.LARGE_INTEGER = undefined;
+        std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
+        const elapsed_ticks = end_of_frame.QuadPart - self.start_of_frame.QuadPart;
+        const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(self.frequency.QuadPart));
+        self.start_of_frame = end_of_frame;
+        return frame_time_s;
+    }
+    start_of_game: cWindows.LARGE_INTEGER,
+    start_of_frame: cWindows.LARGE_INTEGER,
+    frequency: cWindows.LARGE_INTEGER,
 };
 
 const PLAYER_LIVES = 5;
@@ -209,7 +200,6 @@ pub fn main() void {
 
     const initial_fps = 240;
     var fps_float: f32 = @floatFromInt(initial_fps);
-    raylib.SetTargetFPS(initial_fps);
 
     const textures: struct {
         logo: raylib.Texture2D,
@@ -439,7 +429,7 @@ pub fn main() void {
                     const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
                     const fontSize = 20;
                     raylib.DrawRectangle(0, 0, @intFromFloat(screenSize.x), @intFromFloat(screenSize.y), raylib.GREEN);
-                    raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
+                    // raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
                     const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
                     if (game.shouldFlashText) {
                         raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKGREEN);
@@ -453,7 +443,7 @@ pub fn main() void {
                         @intFromFloat(screenSize.y),
                         raylib.PURPLE,
                     );
-                    raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
+                    // raylib.DrawText("GAMEPLAY SCREEN", 20, 20, 40, raylib.MAROON);
 
                     for (game.bricks, 0..) |brickRow, r| {
                         for (brickRow, 0..) |brick, c| {
