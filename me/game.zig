@@ -305,14 +305,14 @@ pub fn main() void {
 
             switch (game.screen) {
                 .LOGO => {
-                    if (game.framesCounter > 3 * @as(i32, @intFromFloat(fps_float)) or raylib.IsKeyPressed(raylib.KEY_ENTER)) {
+                    if (game.framesCounter > 3 * @as(i32, @intFromFloat(fps_float)) or raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) {
                         game.screen = .TITLE;
                         game.framesCounter = 0;
                     }
                     game.framesCounter += 1;
                 },
                 .TITLE => {
-                    if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .GAMEPLAY;
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) game.screen = .GAMEPLAY;
                     game.framesCounter += 1;
 
                     game.player.lives = PLAYER_LIVES;
@@ -326,6 +326,9 @@ pub fn main() void {
                         game.ball.velocity.y *= 2;
                     }
                     if (raylib.IsKeyPressed(raylib.KEY_P) or raylib.IsKeyPressed(raylib.KEY_SPACE)) game.isPaused = !game.isPaused;
+                    if (raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) {
+                        game.isPaused = false;
+                    }
                     if (raylib.IsKeyPressed('H')) shouldShowHitboxes = !shouldShowHitboxes;
                     if (raylib.IsKeyPressed('F')) shouldShowFps = !shouldShowFps;
 
@@ -354,6 +357,10 @@ pub fn main() void {
                     if (raylib.IsKeyDown(raylib.KEY_RIGHT) or raylib.IsKeyDown('D')) game.player.position.x += game.player.velocity.x / fps_float;
                     if (raylib.IsKeyDown(raylib.KEY_UP) or raylib.IsKeyDown('W')) game.player.position.y -= game.player.velocity.y / fps_float;
                     if (raylib.IsKeyDown(raylib.KEY_DOWN) or raylib.IsKeyDown('S')) game.player.position.y += game.player.velocity.y / fps_float;
+                    if (raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) game.player.position = .{
+                        .x = @as(f32, @floatFromInt(raylib.GetMouseX())) - game.player.size.x / 2,
+                        .y = @as(f32, @floatFromInt(raylib.GetMouseY())) - game.player.size.y / 2,
+                    };
 
                     const mouseMove = raylib.GetMouseDelta();
                     game.player.position.x += mouseMove.x;
@@ -399,7 +406,7 @@ pub fn main() void {
                     }
                 },
                 .ENDING => {
-                    if (raylib.IsKeyPressed(raylib.KEY_ENTER)) game.screen = .TITLE;
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) game.screen = .TITLE;
                     game.framesCounter += 1;
                 },
             }
