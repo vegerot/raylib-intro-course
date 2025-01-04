@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const raylib = @cImport({
     @cInclude("raylib.h");
 });
@@ -16,26 +17,26 @@ const GameTime = if (is_posix) struct {
     const Self = @This();
     pub fn init() Self {
         var self: Self = undefined;
-        self.start_of_game = undefined;
-        std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &self.start_of_game));
-        self.start_of_frame = self.start_of_game;
+        self._start_of_game = undefined;
+        std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &self._start_of_game));
+        self._start_of_frame = self._start_of_game;
         return self;
     }
     pub fn GetTimeFromGameStart(self: *Self) f32 {
         var end_of_frame: cTime.timespec = undefined;
         std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
-        return (@as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_game.tv_sec))) + (@as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_game.tv_nsec))) / 1_000_000_000.0;
+        return (@as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self._start_of_game.tv_sec))) + (@as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self._start_of_game.tv_nsec))) / 1_000_000_000.0;
     }
     pub fn GetFrameTime(self: *Self) f32 {
         var end_of_frame: cTime.timespec = undefined;
         std.debug.assert(0 == cTime.clock_gettime(cTime.CLOCK_MONOTONIC, &end_of_frame));
-        const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_sec));
-        const elapsed_nanos = @as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self.start_of_frame.tv_nsec));
-        self.start_of_frame = end_of_frame;
+        const elapsed_seconds = @as(f32, @floatFromInt(end_of_frame.tv_sec)) - @as(f32, @floatFromInt(self._start_of_frame.tv_sec));
+        const elapsed_nanos = @as(f32, @floatFromInt(end_of_frame.tv_nsec)) - @as(f32, @floatFromInt(self._start_of_frame.tv_nsec));
+        self._start_of_frame = end_of_frame;
         return elapsed_seconds + elapsed_nanos / 1_000_000_000.0;
     }
-    start_of_game: cTime.timespec,
-    start_of_frame: cTime.timespec,
+    _start_of_game: cTime.timespec,
+    _start_of_frame: cTime.timespec,
 } else struct {
     const cWindows = @cImport({
         @cInclude("Windows.h");
@@ -43,27 +44,27 @@ const GameTime = if (is_posix) struct {
     const Self = @This();
     pub fn init() Self {
         var self: Self = undefined;
-        std.debug.assert(cWindows.QueryPerformanceFrequency(&self.frequency) != 0);
-        std.debug.assert(cWindows.QueryPerformanceCounter(&self.start_of_game) != 0);
-        self.start_of_frame = self.start_of_game;
+        std.debug.assert(cWindows.QueryPerformanceFrequency(&self._frequency) != 0);
+        std.debug.assert(cWindows.QueryPerformanceCounter(&self._start_of_game) != 0);
+        self._start_of_frame = self._start_of_game;
         return self;
     }
     pub fn GetTimeFromGameStart(self: *Self) f32 {
         var end_of_frame: cWindows.LARGE_INTEGER = undefined;
         std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
-        return (@as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(self.start_of_game.QuadPart))) / @as(f32, @floatFromInt(self.frequency.QuadPart));
+        return (@as(f32, @floatFromInt(end_of_frame.QuadPart)) - @as(f32, @floatFromInt(self._start_of_game.QuadPart))) / @as(f32, @floatFromInt(self._frequency.QuadPart));
     }
     pub fn GetFrameTime(self: *Self) f32 {
         var end_of_frame: cWindows.LARGE_INTEGER = undefined;
         std.debug.assert(cWindows.QueryPerformanceCounter(&end_of_frame) != 0);
-        const elapsed_ticks = end_of_frame.QuadPart - self.start_of_frame.QuadPart;
-        const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(self.frequency.QuadPart));
-        self.start_of_frame = end_of_frame;
+        const elapsed_ticks = end_of_frame.QuadPart - self._start_of_frame.QuadPart;
+        const frame_time_s = @as(f32, @floatFromInt(elapsed_ticks)) / @as(f32, @floatFromInt(self._frequency.QuadPart));
+        self._start_of_frame = end_of_frame;
         return frame_time_s;
     }
-    start_of_game: cWindows.LARGE_INTEGER,
-    start_of_frame: cWindows.LARGE_INTEGER,
-    frequency: cWindows.LARGE_INTEGER,
+    _start_of_game: cWindows.LARGE_INTEGER,
+    _start_of_frame: cWindows.LARGE_INTEGER,
+    _frequency: cWindows.LARGE_INTEGER,
 };
 
 const PLAYER_LIVES = 5;
@@ -72,6 +73,7 @@ const BRICKS_PER_LINE = 20;
 const BRICKS_POSITION_Y = 50;
 
 const GameScreen = enum {
+    ERROR,
     LOGO,
     TITLE,
     GAMEPLAY,
@@ -198,7 +200,7 @@ pub fn main() void {
     defer raylib.CloseWindow();
     raylib.SetWindowState(raylib.FLAG_WINDOW_RESIZABLE);
 
-    const initial_fps = 240;
+    const initial_fps = raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor());
     var fps_float: f32 = @floatFromInt(initial_fps);
 
     const textures: struct {
@@ -212,6 +214,9 @@ pub fn main() void {
         .paddle = raylib.LoadTexture("lessons/resources/paddle.png"),
         .brick = raylib.LoadTexture("lessons/resources/brick.png"),
     };
+
+    const font = raylib.LoadFont("lessons/resources/setback.png");
+    defer raylib.UnloadFont(font);
 
     var shouldShowHitboxes = false;
     var shouldShowFps = true;
@@ -293,6 +298,7 @@ pub fn main() void {
             // technically this should be at the end of the frame, but it's close enough
 
             const frame_time_s = fpsMeasurer.GetFrameTime();
+            if (std.math.isInf(frame_time_s) and game.framesCounter < 69) {}
             fps_float = 1.0 / frame_time_s;
             const elapsed_seconds = fpsMeasurer.GetTimeFromGameStart();
             game.shouldFlashText = @rem(@as(i16, @intFromFloat(elapsed_seconds)), 2) == 0;
@@ -304,6 +310,9 @@ pub fn main() void {
             };
 
             switch (game.screen) {
+                .ERROR => {
+                    unreachable;
+                },
                 .LOGO => {
                     if (game.framesCounter > 3 * @as(i32, @intFromFloat(fps_float)) or raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) {
                         game.screen = .TITLE;
@@ -420,6 +429,7 @@ pub fn main() void {
             raylib.ClearBackground(raylib.RAYWHITE);
 
             switch (game.screen) {
+                .ERROR => unreachable,
                 .LOGO => {
                     raylib.DrawTextureV(
                         textures.logo,
@@ -433,13 +443,22 @@ pub fn main() void {
                     raylib.DrawText("Powered by", 290, 220, 20, raylib.GRAY);
                 },
                 .TITLE => {
-                    const text = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
-                    const fontSize = 20;
                     raylib.DrawRectangle(0, 0, @intFromFloat(screenSize.x), @intFromFloat(screenSize.y), raylib.GREEN);
                     // raylib.DrawText("TITLE SCREEN", 20, 20, 40, raylib.DARKGREEN);
-                    const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
+                    const text = "BLOCKS";
+                    const fontSize = 160;
+                    const textPosition: raylib.Vector2 = .{
+                        .x = screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2,
+                        .y = screenSize.y / 5,
+                    };
+
+                    raylib.DrawTextEx(font, text, textPosition, 160, 10, raylib.MAROON);
+
+                    const flashingText = "PRESS ENTER to JUMP to GAMEPLAY SCREEN";
+                    const flashingTextFontSize = 20;
+                    const flashTextStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(flashingText, flashingTextFontSize))) / 2);
                     if (game.shouldFlashText) {
-                        raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKGREEN);
+                        raylib.DrawText(flashingText, flashTextStartPoint, @intFromFloat(screenSize.y / 2), flashingTextFontSize, raylib.DARKGREEN);
                     }
                 },
                 .GAMEPLAY => {
@@ -501,8 +520,6 @@ pub fn main() void {
                     }
                 },
                 .ENDING => {
-                    const text = "PRESS ENTER to RETURN to TITLE SCREEN";
-                    const fontSize = 20;
                     raylib.DrawRectangle(
                         0,
                         0,
@@ -510,10 +527,20 @@ pub fn main() void {
                         @intFromFloat(screenSize.y),
                         raylib.BLUE,
                     );
+                    const text = "GAME OVER";
+                    const fontSize = 80;
+                    const textPosition: raylib.Vector2 = .{
+                        .x = screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2,
+                        .y = screenSize.y / 4,
+                    };
+                    raylib.DrawTextEx(font, text, textPosition, fontSize, 6, raylib.MAROON);
+
+                    const flashingText = "PRESS ENTER to RETURN to TITLE SCREEN";
+                    const flashingFontSize = 20;
                     raylib.DrawText("ENDING SCREEN", 20, 20, 40, raylib.DARKBLUE);
-                    const textStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(text, fontSize))) / 2);
+                    const flashingTextStartPoint: i32 = @intFromFloat(screenSize.x / 2 - @as(f32, @floatFromInt(raylib.MeasureText(flashingText, flashingFontSize))) / 2);
                     if (game.shouldFlashText) {
-                        raylib.DrawText(text, textStartPoint, 220, fontSize, raylib.DARKBLUE);
+                        raylib.DrawText(flashingText, flashingTextStartPoint, 220, flashingFontSize, raylib.DARKBLUE);
                     }
                 },
             }
