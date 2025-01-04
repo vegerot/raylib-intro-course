@@ -22,7 +22,7 @@ In this introductory course to [raylib](http://www.raylib.com/) we will implemen
  - Textures loading and drawing
  - Fonts loading and text drawing
  - Sounds and music loading and playing
- 
+
 **NOTE:** All code provided is in C language for simplicity and clearness but it's up to the student to use more complex C++ code structures (OOP) if desired.
 
 ## Lessons Summary
@@ -63,12 +63,12 @@ raylib follows the KISS principle, providing simple functions with clear naming 
 
 **Environment setup**
 
-raylib can be used with many environment configurations as far as a code-editor and compiler are provided.  
+raylib can be used with many environment configurations as far as a code-editor and compiler are provided.
 By default, [raylib webpage](http://www.raylib.com/) distributes a Windows Installer containing all required tools to develop videogames with raylib in C/C++ on Windows platforms. Tools included with installer are **preconfigured** versions of:
 
  - [w64devkit/MinGW](https://github.com/skeeto/w64devkit) - Minimalistic GNU for Windows, including GCC compiler and several tools and libraries
  - [Notepad++](https://notepad-plus-plus.org) - Windows simple code editor, preconfigured with multiple compiling scripts
- 
+
 In case some students desire to use other tools or want to work in another environment different than Windows, detailed information is provided on [raylib Wiki](https://github.com/raysan5/raylib/wiki) to configure raylib on multiple environments, including [macOS](https://github.com/raysan5/raylib/wiki/Working-on-macOS) and [GNU Linux](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux) platforms.
 
 **Basic concept: Game loop**
@@ -94,7 +94,7 @@ On our game loop (Update/Draw) we will just check for current game state and we 
 Recommended [raylib examples](http://www.raylib.com/examples.html) to check:
  - [core_basic_window](http://www.raylib.com/examples/core/loader.html?name=core_basic_window) - simple code showing a videogame life cycle
  - [core_basic_screen_manager](https://github.com/raysan5/raylib/blob/master/examples/core/core_basic_screen_manager.c) - basic screens management structure
- 
+
 
 ### Lesson 02: Draw basic shapes (circle, rectangle)
 
@@ -126,7 +126,7 @@ bool IsKeyPressed(int key);               // Detect if a key has been pressed on
 bool IsKeyDown(int key);                  // Detect if a key is being pressed
 bool IsKeyReleased(int key);              // Detect if a key has been released once
 bool IsKeyUp(int key);                    // Detect if a key is NOT being pressed
-    
+
 bool IsMouseButtonPressed(int button);    // Detect if a mouse button has been pressed once
 bool IsMouseButtonDown(int button);       // Detect if a mouse button is being pressed
 bool IsMouseButtonReleased(int button);   // Detect if a mouse button has been released once
@@ -135,7 +135,7 @@ int GetMouseX(void);                      // Returns mouse position X
 int GetMouseY(void);                      // Returns mouse position Y
 Vector2 GetMousePosition(void);           // Returns mouse position XY
 ```
-This set of functions can be used in the `update` part of the game loop to check **if** one key or button has been pressed (or is being pressed in that frame).  
+This set of functions can be used in the `update` part of the game loop to check **if** one key or button has been pressed (or is being pressed in that frame).
 
 Recommended [raylib examples](http://www.raylib.com/examples.html) to check:
  - [core_input_keys](http://www.raylib.com/examples/core/loader.html?name=core_input_keys) - keyboard inputs check
@@ -159,11 +159,11 @@ Those functions return *true* if the involved rectangles/circles collide, is up 
 
 *Lesson code file to review: [05_blocks_game_textures.c](lessons/05_blocks_game_textures.c)*
 
-Actually texture loading and drawing is a quite complex process: 
+Actually texture loading and drawing is a quite complex process:
 
 First, the image file is loaded, image data is usually decompressed and decodified (.png, .jpg) to obtain a plain array of pixel data; every pixel can be interpreted with different pixel formats (8bit, 16bit, 32bit...) but usually raylib translates that data to RGBA 32Bit (4 channels - RedGrenBlueAlpha, 8bit per channel). Image data is loaded into RAM.
 
-Second, that image data must be uploaded to VRAM memory (GPU) to be used on screen rendering. 
+Second, that image data must be uploaded to VRAM memory (GPU) to be used on screen rendering.
 
 Third, when drawing a texture to screen, texture is actually pasted over a quad (two triangles structure) and processed to display on the screen; that processing occurs in a per-fragment basis... think about it like a per pixel or sub-pixel processing, placing every fragment on the final canvas.
 
@@ -179,7 +179,6 @@ void DrawTexture(Texture2D texture, int posX, int posY, Color tint); // Draw a t
 
 Recommended [raylib examples](http://www.raylib.com/examples.html) to check:
  - [textures_logo_raylib](http://www.raylib.com/examples/textures/loader.html?name=textures_logo_raylib) - texture loading and drawing
- - [textures_rectangle](http://www.raylib.com/examples/textures/loader.html?name=textures_rectangle) - texture loading and piece drawing
 
 
 ### Lesson 06: Fonts loading and text drawing
@@ -192,7 +191,7 @@ void DrawText(const char *text, int posX, int posY, int fontSize, Color color);
 ```
 But raylib users can also load custom fonts, raylib support multiple fonts formats, including TTF format and BMFonts. To load custom fonts and draw with them, use the following functions:
 ```c
-Font LoadFont(const char *fileName);         // Load a Font image into GPU 
+Font LoadFont(const char *fileName);         // Load a Font image into GPU
 void UnloadFont(Font font);                  // Unload Font from GPU memory
 
 void DrawTextEx(Font font, const char* text, Vector2 position, int fontSize, int spacing, Color tint);
@@ -200,7 +199,7 @@ void DrawTextEx(Font font, const char* text, Vector2 position, int fontSize, int
 
 Recommended [raylib examples](http://www.raylib.com/examples.html) to check:
  - [text_sprite_fonts](http://www.raylib.com/examples/text/loader.html?name=text_sprite_fonts) - sprite fonts loading and drawing
- - [text_bmfonts_ttf](http://www.raylib.com/examples/text/loader.html?name=text_bmfont_ttf) - bmfonts and ttf fonts loading
+ - [text_font_loading](http://www.raylib.com/examples/text/loader.html?name=text_font_loading) - bmfonts and ttf fonts loading
  - [text_writing_anim](http://www.raylib.com/examples/text/loader.html?name=text_writing_anim) - text writting animation effect
 
 
@@ -240,7 +239,7 @@ Recommended [raylib examples](http://www.raylib.com/examples.html) to check:
  - [audio_music_stream](http://www.raylib.com/examples/audio/loader.html?name=audio_music_stream) - music loading and streaming
 
 
-## Getting help 
+## Getting help
 It's recommended to join [raylib Discord community](https://discord.gg/raylib) to ask other developers and get help from the community or just showcase your creations.
 
 ## License
