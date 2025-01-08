@@ -181,6 +181,7 @@ const Game = struct {
     framesCounter: u32,
     screen: GameScreen,
     isPaused: bool,
+    isMuted: bool,
     shouldFlashText: bool,
     player: Player,
     ball: Ball,
@@ -218,6 +219,21 @@ pub fn main() void {
     const font = raylib.LoadFont("lessons/resources/setback.png");
     defer raylib.UnloadFont(font);
 
+    raylib.InitAudioDevice();
+
+    const sounds: struct {
+        start: raylib.Sound,
+        bounce: raylib.Sound,
+        explode: raylib.Sound,
+    } = .{
+        .start = raylib.LoadSound("lessons/resources/start.wav"),
+        .bounce = raylib.LoadSound("lessons/resources/bounce.wav"),
+        .explode = raylib.LoadSound("lessons/resources/explosion.wav"),
+    };
+
+    const music: raylib.Music = raylib.LoadMusicStream("lessons/resources/music.mp3");
+    defer raylib.UnloadMusicStream(music);
+
     var shouldShowHitboxes = false;
     var shouldShowFps = true;
     const ballRadius = 10;
@@ -233,6 +249,7 @@ pub fn main() void {
         .framesCounter = 0,
         .screen = .LOGO,
         .isPaused = false,
+        .isMuted = false,
         .shouldFlashText = true,
         .player = Player{
             .position = initialPlayerPosition,
@@ -291,7 +308,20 @@ pub fn main() void {
         }
     }
 
+    raylib.PlayMusicStream(music);
     while (!raylib.WindowShouldClose()) {
+        var shouldPlaySound: struct {
+            music: bool,
+            start: bool,
+            bounce: bool,
+            explode: bool,
+        } = .{
+            .music = true,
+            .start = false,
+            .bounce = false,
+            .explode = false,
+        };
+
         // UPDATE
         {
             // calculate fps
@@ -309,6 +339,7 @@ pub fn main() void {
                 .y = @floatFromInt(raylib.GetScreenHeight()),
             };
 
+            if (raylib.IsKeyPressed('M')) game.isMuted = !game.isMuted;
             switch (game.screen) {
                 .ERROR => {
                     unreachable;
@@ -321,7 +352,10 @@ pub fn main() void {
                     game.framesCounter += 1;
                 },
                 .TITLE => {
-                    if (raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) game.screen = .GAMEPLAY;
+                    if (raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) {
+                        game.screen = .GAMEPLAY;
+                        shouldPlaySound.start = true;
+                    }
                     game.framesCounter += 1;
 
                     game.player.lives = PLAYER_LIVES;
@@ -401,6 +435,8 @@ pub fn main() void {
                         game.ball.velocity.y *= -1;
                         game.ball.goFaster();
                         game.ball.step(fps_float);
+
+                        shouldPlaySound.bounce = true;
                     }
                     for (&game.bricks) |*brickRow| {
                         for (brickRow) |*brick| {
@@ -409,6 +445,8 @@ pub fn main() void {
                                 brick.isActive = false;
                                 game.ball.velocity.y *= -1;
                                 game.ball.goFaster();
+                                shouldPlaySound.explode = true;
+
                                 break;
                             }
                         }
@@ -418,6 +456,23 @@ pub fn main() void {
                     if (raylib.IsKeyPressed(raylib.KEY_ENTER) or raylib.IsMouseButtonDown(raylib.MOUSE_BUTTON_LEFT)) game.screen = .TITLE;
                     game.framesCounter += 1;
                 },
+            }
+        }
+
+        // SOUND
+        snd: {
+            if (game.isMuted) {
+                break :snd;
+            }
+            raylib.UpdateMusicStream(music);
+            if (shouldPlaySound.start) {
+                raylib.PlaySound(sounds.start);
+            }
+            if (shouldPlaySound.bounce) {
+                raylib.PlaySound(sounds.bounce);
+            }
+            if (shouldPlaySound.explode) {
+                raylib.PlaySound(sounds.explode);
             }
         }
 
@@ -551,6 +606,10 @@ pub fn main() void {
     inline for (comptime std.meta.fields(@TypeOf(textures))) |field| {
         const texture = @field(textures, field.name);
         raylib.UnloadTexture(texture);
+    }
+    inline for (comptime std.meta.fields(@TypeOf(sounds))) |field| {
+        const sound = @field(sounds, field.name);
+        defer raylib.UnloadSound(sound);
     }
 }
 
