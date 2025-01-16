@@ -111,9 +111,16 @@ const BallCollisionWithWallDetection = struct {
 
 const Ball = struct {
     position: raylib.Vector2,
+    previousPosition: typeOfPosition(),
     velocity: raylib.Vector2,
     radius: f32,
     isActive: bool,
+
+    /// HACK: Is there a better way to do this?
+    fn typeOfPosition() type {
+        return @TypeOf(@as(@This(), undefined).position);
+    }
+
     pub fn detectWallCollision(self: *Ball, screenSize: raylib.Vector2) BallCollisionWithWallDetection {
         var result = BallCollisionWithWallDetection{ .x = .none, .y = .none };
         if (self.position.x - self.radius < 0) {
@@ -147,12 +154,12 @@ const Ball = struct {
         }
     }
 
-    pub fn detectPaddleCollision(self: *Ball, previousBallPosition: raylib.Vector2, paddle: Player) bool {
+    pub fn detectPaddleCollision(self: *Ball, paddle: Player) bool {
         const ballPositionSmear = raylib.Rectangle{
-            .x = previousBallPosition.x,
-            .y = previousBallPosition.y,
-            .width = self.position.x - previousBallPosition.x,
-            .height = self.position.y - previousBallPosition.y,
+            .x = self.previousPosition.x,
+            .y = self.previousPosition.y,
+            .width = self.position.x - self.previousPosition.x,
+            .height = self.position.y - self.previousPosition.y,
         };
         const hitPaddleBetweenThisFrameAndLast = raylib.CheckCollisionRecs(ballPositionSmear, paddle.bounds);
 
@@ -160,12 +167,12 @@ const Ball = struct {
         return hitPaddleBetweenThisFrameAndLast or isHittingPaddle;
     }
 
-    pub fn detectBrickCollision(self: *Ball, previousBallPosition: raylib.Vector2, brick: *Brick) bool {
+    pub fn detectBrickCollision(self: *Ball, brick: *Brick) bool {
         const ballPositionSmear = raylib.Rectangle{
-            .x = previousBallPosition.x,
-            .y = previousBallPosition.y,
-            .width = self.position.x - previousBallPosition.x,
-            .height = self.position.y - previousBallPosition.y,
+            .x = self.previousPosition.x,
+            .y = self.previousPosition.y,
+            .width = self.position.x - self.previousPosition.x,
+            .height = self.position.y - self.previousPosition.y,
         };
         const hitBrickBetweenThisFrameAndLast = raylib.CheckCollisionRecs(ballPositionSmear, brick.bounds);
 
@@ -302,6 +309,7 @@ pub fn main() void {
                 .x = initialPlayerPosition.x + initialPlayerSize.x / 2,
                 .y = initialPlayerPosition.y - ballRadius * 2,
             },
+            .previousPosition = undefined,
             .velocity = raylib.Vector2{
                 .x = 69,
                 .y = -42.0,
@@ -442,7 +450,7 @@ pub fn main() void {
                     game.player.updateBounds();
 
                     // physics
-                    const previousBallPosition = game.ball.position;
+                    game.ball.previousPosition = game.ball.position;
                     game.ball.step(fps_float);
                     const detectBallCollisionWithWall = game.ball.detectWallCollision(screenSize);
                     const didLose = detectBallCollisionWithWall.y == .bottom;
@@ -456,11 +464,10 @@ pub fn main() void {
                     }
                     game.ball.resolveWallCollision(detectBallCollisionWithWall, screenSize);
 
-                    if (game.ball.detectPaddleCollision(previousBallPosition, game.player)) {
+                    if (game.ball.detectPaddleCollision(game.player)) {
                         const newXVelocity = game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
                         game.ball.velocity.x = newXVelocity;
                         game.ball.velocity.y *= -1;
-                        game.ball.goFaster();
                         game.ball.step(fps_float);
 
                         shouldPlaySound.bounce = true;
@@ -468,7 +475,7 @@ pub fn main() void {
                     for (&game.bricks) |*brickRow| {
                         for (brickRow) |*brick| {
                             if (!brick.isActive) continue;
-                            if (game.ball.detectBrickCollision(previousBallPosition, brick)) {
+                            if (game.ball.detectBrickCollision(brick)) {
                                 brick.isActive = false;
                                 game.ball.velocity.y *= -1;
                                 game.ball.goFaster();
