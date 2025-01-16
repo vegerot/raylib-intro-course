@@ -111,6 +111,7 @@ const BallCollisionWithWallDetection = struct {
 
 const Ball = struct {
     position: raylib.Vector2,
+    previousBallPosition: @typeInfo(@This()).position,
     velocity: raylib.Vector2,
     radius: f32,
     isActive: bool,
@@ -460,7 +461,6 @@ pub fn main() void {
                         const newXVelocity = game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
                         game.ball.velocity.x = newXVelocity;
                         game.ball.velocity.y *= -1;
-                        game.ball.goFaster();
                         game.ball.step(fps_float);
 
                         shouldPlaySound.bounce = true;
