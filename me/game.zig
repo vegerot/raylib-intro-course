@@ -129,6 +129,7 @@ const Ball = struct {
         }
         return result;
     }
+
     pub fn resolveWallCollision(self: *Ball, detectionResult: BallCollisionWithWallDetection, screenSize: raylib.Vector2) void {
         std.debug.assert(detectionResult.y != .bottom); // we should have skipped this code
         if (detectionResult.x != .none) {
@@ -145,6 +146,34 @@ const Ball = struct {
             self.position.y = self.radius;
         }
     }
+
+    pub fn detectPaddleCollision(self: *Ball, previousBallPosition: raylib.Vector2, paddle: Player) bool {
+        const ballPositionSmear = raylib.Rectangle{
+            .x = previousBallPosition.x,
+            .y = previousBallPosition.y,
+            .width = self.position.x - previousBallPosition.x,
+            .height = self.position.y - previousBallPosition.y,
+        };
+        const hitPaddleBetweenThisFrameAndLast = raylib.CheckCollisionRecs(ballPositionSmear, paddle.bounds);
+
+        const isHittingPaddle = raylib.CheckCollisionCircleRec(self.position, self.radius, paddle.bounds);
+        return hitPaddleBetweenThisFrameAndLast or isHittingPaddle;
+    }
+
+    pub fn detectBrickCollision(self: *Ball, previousBallPosition: raylib.Vector2, brick: *Brick) bool {
+        const ballPositionSmear = raylib.Rectangle{
+            .x = previousBallPosition.x,
+            .y = previousBallPosition.y,
+            .width = self.position.x - previousBallPosition.x,
+            .height = self.position.y - previousBallPosition.y,
+        };
+        const hitBrickBetweenThisFrameAndLast = raylib.CheckCollisionRecs(ballPositionSmear, brick.bounds);
+
+        const isHittingBrick = raylib.CheckCollisionCircleRec(self.position, self.radius, brick.bounds);
+        if (isHittingBrick) return true;
+        return hitBrickBetweenThisFrameAndLast or isHittingBrick;
+    }
+
     pub fn step(self: *Ball, fps: f32) void {
         self.position.x += self.velocity.x / fps;
         self.position.y += self.velocity.y / fps;
@@ -203,6 +232,7 @@ pub fn main() void {
 
     const initial_fps = raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor());
     var fps_float: f32 = @floatFromInt(initial_fps);
+    raylib.SetTargetFPS(initial_fps);
 
     const textures: struct {
         logo: raylib.Texture2D,
@@ -412,10 +442,7 @@ pub fn main() void {
                     game.player.updateBounds();
 
                     // physics
-                    // game.ball.position = raylib.Vector2{
-                    //     .x = game.ball.position.x + game.ball.velocity.x / fps_float,
-                    //     .y = game.ball.position.y + game.ball.velocity.y / fps_float,
-                    // };
+                    const previousBallPosition = game.ball.position;
                     game.ball.step(fps_float);
                     const detectBallCollisionWithWall = game.ball.detectWallCollision(screenSize);
                     const didLose = detectBallCollisionWithWall.y == .bottom;
@@ -429,7 +456,7 @@ pub fn main() void {
                     }
                     game.ball.resolveWallCollision(detectBallCollisionWithWall, screenSize);
 
-                    if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, game.player.bounds)) {
+                    if (game.ball.detectPaddleCollision(previousBallPosition, game.player)) {
                         const newXVelocity = game.ball.calculateNewVelocityAfterPaddleHit(&game.player);
                         game.ball.velocity.x = newXVelocity;
                         game.ball.velocity.y *= -1;
@@ -441,7 +468,7 @@ pub fn main() void {
                     for (&game.bricks) |*brickRow| {
                         for (brickRow) |*brick| {
                             if (!brick.isActive) continue;
-                            if (raylib.CheckCollisionCircleRec(game.ball.position, game.ball.radius, brick.bounds)) {
+                            if (game.ball.detectBrickCollision(previousBallPosition, brick)) {
                                 brick.isActive = false;
                                 game.ball.velocity.y *= -1;
                                 game.ball.goFaster();
